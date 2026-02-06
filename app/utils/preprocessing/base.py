@@ -31,9 +31,12 @@ class BasePreprocessor(ABC):
         tree = self.parser.parse(source_bytes)
         return self.clean_code(source_bytes, tree.root_node)
 
+    def _get_comment_query(self) -> str:
+        return "(comment) @comment"
+
     def clean_code(self, source_bytes: bytes, node) -> str:
         """Внутренний метод: удаляет комментарии и нормализует пробелы в конкретном узле."""
-        captures = self._execute_query("(comment) @comment", node)
+        captures = self._execute_query(self._get_comment_query(), node)
 
         ranges_to_remove = []
         for captured_node, _ in captures:
@@ -51,5 +54,8 @@ class BasePreprocessor(ABC):
                 del clean_bytes[rel_start:rel_end]
 
         clean_str = clean_bytes.decode("utf-8", errors="ignore")
+        # Удаляем пробелы в конце каждой строки
+        clean_str = "\n".join(line.rstrip() for line in clean_str.splitlines())
+        # Убираем лишние пустые строки
         clean_str = re.sub(r"\n\s*\n", "\n", clean_str).strip()
         return clean_str
