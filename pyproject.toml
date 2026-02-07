@@ -10,3 +10,8 @@ dependencies = [
     "tree-sitter-java>=0.23.5",
     "tree-sitter-python>=0.25.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
