@@ -4,18 +4,30 @@ from .huggingface import _embed_huggingface
 from .local import _embed_local
 
 
-class EmbeddingStrategy(str, Enum):
+class EmbeddingStrategy768(str, Enum):
     HF = "huggingface"
     LOCAL = "local"
 
 
-async def embed(
-    text: str, strategy: EmbeddingStrategy = EmbeddingStrategy.HF
+class EmbeddingStrategy1536(str, Enum):
+    OPENAI = "openai"
+    GEMINI = "gemini"
+
+
+async def embed_768(
+    text: str, strategy: EmbeddingStrategy768 = EmbeddingStrategy768.HF
 ) -> list[float]:
-    # основная точка входа для получения эмбеддинга
-    if strategy == EmbeddingStrategy.HF:
+    # основная точка входа для получения эмбеддинга размера 768
+    if strategy == EmbeddingStrategy768.HF:
         return await _embed_huggingface(text)
-    elif strategy == EmbeddingStrategy.LOCAL:
+    elif strategy == EmbeddingStrategy768.LOCAL:
         return await _embed_local(text)
     else:
         raise ValueError(f"Неизвестная стратегия: {strategy}")
+
+
+async def embed_1536(
+    text: str, strategy: EmbeddingStrategy1536 = EmbeddingStrategy1536.OPENAI
+) -> list[float]:
+    # основная точка входа для получения эмбеддинга размера 1536
+    raise ValueError(f"Неизвестная стратегия: {strategy}")
