@@ -1,7 +1,7 @@
 from enum import Enum
 from cashews import cache
 
-if not cache.is_init:
+if not cache.is_setup():
     cache.setup("mem://")
 
 
