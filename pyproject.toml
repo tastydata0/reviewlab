@@ -17,6 +17,7 @@ dependencies = [
     "fuzzywuzzy>=0.18.0",
     "python-levenshtein>=0.27.3",
     "pygments>=2.19.2",
+    "cashews>=7.5.0",
 ]
 
 [dependency-groups]

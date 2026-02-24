@@ -1,4 +1,9 @@
 from enum import Enum
+from cashews import cache
+
+if not cache.is_init:
+    cache.setup("mem://")
+
 
 from .huggingface import _embed_huggingface
 from .local import _embed_local
@@ -14,6 +19,7 @@ class EmbeddingStrategy1536(str, Enum):
     GEMINI = "gemini"
 
 
+@cache(ttl="5m")
 async def embed_768(
     text: str, strategy: EmbeddingStrategy768 = EmbeddingStrategy768.HF
 ) -> list[float]:
@@ -26,6 +32,7 @@ async def embed_768(
         raise ValueError(f"Неизвестная стратегия: {strategy}")
 
 
+@cache(ttl="5m")
 async def embed_1536(
     text: str, strategy: EmbeddingStrategy1536 = EmbeddingStrategy1536.OPENAI
 ) -> list[float]:
