@@ -1,12 +1,12 @@
 import pytest
 
 from app.models.plagiarism import CodeSubmission
-from app.services.plagiarism.ast import AstStrategy
+from app.services.plagiarism.ast import AstLevenshteinStrategy
 
 
 @pytest.fixture
 def strategy():
-    return AstStrategy(language="python")
+    return AstLevenshteinStrategy(language="python")
 
 
 @pytest.mark.asyncio
