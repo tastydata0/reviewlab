@@ -7,6 +7,7 @@ if not cache.is_setup():
 
 from .huggingface import _embed_huggingface
 from .local import _embed_local
+from .openai import _embed_openai
 
 
 class EmbeddingStrategy768(str, Enum):
@@ -37,4 +38,7 @@ async def embed_1536(
     text: str, strategy: EmbeddingStrategy1536 = EmbeddingStrategy1536.OPENAI
 ) -> list[float]:
     # основная точка входа для получения эмбеддинга размера 1536
-    raise ValueError(f"Неизвестная стратегия: {strategy}")
+    if strategy == EmbeddingStrategy1536.OPENAI:
+        return await _embed_openai(text)
+    else:
+        raise ValueError(f"Неизвестная стратегия: {strategy}")
