@@ -8,7 +8,11 @@ client = AsyncOpenAI(
 
 
 async def _embed_openai(text: str) -> list[float]:
-    response = await client.embeddings.create(
-        input=text, model="openai/text-embedding-3-small"
-    )
-    return response.data[0].embedding
+    try:
+        response = await client.embeddings.create(
+            input=text, model="text-embedding-3-small"
+        )
+        return response.data[0].embedding
+    except Exception as e:
+        print(f"OpenAI Embedding Error: {e}")
+        raise
