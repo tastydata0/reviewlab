@@ -5,7 +5,7 @@ from typing import List
 from app.models.plagiarism import CodeSubmission, PlagiarismMatch
 from app.services.plagiarism.base import BasePlagiarismStrategy
 from app.utils.chunking import CppChunker, JavaChunker, PythonChunker
-from app.utils.embedding.main import embed_768
+from app.utils.embedding.main import embed_1536
 
 
 class SemanticChunkingStrategy(BasePlagiarismStrategy):
@@ -56,7 +56,7 @@ class SemanticChunkingStrategy(BasePlagiarismStrategy):
 
             embeddings = []
             for chunk in chunks:
-                vec = await embed_768(chunk["code"])
+                vec = await embed_1536(chunk["code"])
                 embeddings.append(vec)
 
             submission_embeddings[sub.id] = embeddings
