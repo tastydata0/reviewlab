@@ -1,3 +1,18 @@
+from contextlib import asynccontextmanager
+
 from fasthtml.common import fast_app
 
-app, rt = fast_app()
+from app.frontend.deps.auth import access_denied_handler
+from app.storage.postgres import create_db_and_tables
+
+
+@asynccontextmanager
+async def lifespan(app):
+    await create_db_and_tables()
+    yield
+
+
+app, rt = fast_app(
+    exception_handlers={403: access_denied_handler},
+    lifespan=lifespan,
+)
