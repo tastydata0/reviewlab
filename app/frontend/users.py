@@ -2,6 +2,7 @@ import uuid
 from fasthtml.common import *
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
+from sqlalchemy import select
 
 from app.base import rt
 from app.services.user import UserService
@@ -135,6 +136,12 @@ async def get_me(session):
                         else ""
                     ),
                     Br(),
+                    (
+                        A("Управление курсами", href="/courses")
+                        if user.role in (UserRole.teacher, UserRole.admin)
+                        else ""
+                    ),
+                    Br(),
                     A("Выйти", href="/logout"),
                 ),
             )
@@ -155,6 +162,69 @@ async def post_me(session, full_name: str, email: str):
             await user_service.update_user(
                 user_id=user_id, full_name=full_name, email=email
             )
+            return RedirectResponse("/me", status_code=303)
+        except HTTPException as e:
+            return Titled("Ошибка", Div(P(e.detail), A("Назад", href="/me")))
+
+
+@rt("/groups", methods=["GET"])
+async def get_groups(session):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    async with async_session_maker() as db_session:
+        result = await db_session.execute(select(StudyGroup))
+        groups = result.scalars().all()
+        return Titled(
+            "Группы",
+            (
+                Ul(*[Li(f"{g.name} (ID: {g.id})") for g in groups])
+                if groups
+                else P("Групп пока нет.")
+            ),
+            Hr(),
+            H3("Создать группу"),
+            Form(
+                Input(name="name", placeholder="Название группы", required=True),
+                Button("Создать"),
+                method="post",
+                action="/groups",
+            ),
+            A("Назад в профиль", href="/me"),
+        )
+
+
+@rt("/groups", methods=["POST"])
+async def post_groups(session, name: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    async with async_session_maker() as db_session:
+        user_service = UserService(db_session)
+        try:
+            await user_service.create_study_group(name=name)
+            return RedirectResponse("/groups", status_code=303)
+        except HTTPException as e:
+            return Titled("Ошибка", Div(P(e.detail), A("Назад", href="/groups")))
+
+
+@rt("/users/{target_user_id}/group", methods=["POST"])
+async def post_user_group(session, target_user_id: str, group_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    async with async_session_maker() as db_session:
+        user_service = UserService(db_session)
+        try:
+            await user_service.add_user_to_group(
+                user_id=uuid.UUID(target_user_id), group_id=uuid.UUID(group_id)
+            )
+            return RedirectResponse("/me", status_code=303)
+        except HTTPException as e:
+            return Titled("Ошибка", Div(P(e.detail), A("Назад", href="/me")))
+
+
+@rt("/users/{target_user_id}/promote", methods=["POST"])
+async def promote_user(session, target_user_id: str):
+    require_roles(session, [UserRole.admin.value])
+    async with async_session_maker() as db_session:
+        user_service = UserService(db_session)
+        try:
+            await user_service.promote_to_teacher(user_id=uuid.UUID(target_user_id))
             return RedirectResponse("/me", status_code=303)
         except HTTPException as e:
             return Titled("Ошибка", Div(P(e.detail), A("Назад", href="/me")))
