@@ -1,9 +1,9 @@
 import uuid
-from typing import Optional
+import datetime as dt
+from typing import Optional, List
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from fastapi import HTTPException, status
-import datetime as dt
 from pydantic import EmailStr
 
 from app.models.user import User, UserRole
@@ -19,8 +19,8 @@ class UserService:
         self, email: EmailStr, password: str, full_name: str
     ) -> User:
         statement = select(User).where(User.email == email)
-        result = await self.session.exec(statement)
-        if result.first():
+        result = await self.session.execute(statement)
+        if result.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered",
@@ -42,8 +42,8 @@ class UserService:
         self, email: str, password: str, expires_in: float
     ) -> str:
         statement = select(User).where(User.email == email)
-        result = await self.session.exec(statement)
-        user = result.first()
+        result = await self.session.execute(statement)
+        user = result.scalars().first()
 
         if not user or not AuthService.verify_password(password, user.hashed_password):
             raise HTTPException(
@@ -58,8 +58,8 @@ class UserService:
 
     async def create_study_group(self, name: str) -> StudyGroup:
         statement = select(StudyGroup).where(StudyGroup.name == name)
-        result = await self.session.exec(statement)
-        if result.first():
+        result = await self.session.execute(statement)
+        if result.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Study group with this name already exists",
@@ -70,6 +70,11 @@ class UserService:
         await self.session.commit()
         await self.session.refresh(group)
         return group
+
+    async def get_all_study_groups(self) -> List[StudyGroup]:
+        statement = select(StudyGroup)
+        result = await self.session.execute(statement)
+        return result.scalars().all()
 
     async def get_user_by_id(self, user_id: uuid.UUID) -> User:
         user = await self.session.get(User, user_id)
@@ -103,8 +108,8 @@ class UserService:
 
         if email and email != user.email:
             statement = select(User).where(User.email == email)
-            result = await self.session.exec(statement)
-            if result.first():
+            result = await self.session.execute(statement)
+            if result.scalars().first():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Email already registered by another user",
@@ -128,8 +133,8 @@ class UserService:
 
         if name != group.name:
             statement = select(StudyGroup).where(StudyGroup.name == name)
-            result = await self.session.exec(statement)
-            if result.first():
+            result = await self.session.execute(statement)
+            if result.scalars().first():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Group with this name already exists",

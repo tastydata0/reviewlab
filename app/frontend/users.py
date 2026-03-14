@@ -171,8 +171,8 @@ async def post_me(session, full_name: str, email: str):
 async def get_groups(session):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     async with async_session_maker() as db_session:
-        result = await db_session.execute(select(StudyGroup))
-        groups = result.scalars().all()
+        user_service = UserService(db_session)
+        groups = await user_service.get_all_study_groups()
         return Titled(
             "Группы",
             (
