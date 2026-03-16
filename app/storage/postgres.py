@@ -13,6 +13,8 @@ if True:  # чтобы ruff и прочие не убрали
     from app.models.user import User  # noqa: F401
     from app.models.group import StudyGroup  # noqa: F401
     from app.models.submission import Submission  # noqa: F401
+    from app.models.task_group import TaskGroup  # noqa: F401
+    from app.models.task import Task  # noqa: F401
 
 
 dsn = SETTINGS.POSTGRES_DSN.get_secret_value()

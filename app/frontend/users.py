@@ -2,14 +2,12 @@ import uuid
 from fasthtml.common import *
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
 
 from app.base import rt
 from app.services.user import UserService
 from app.services.auth import AuthService
 from app.storage.postgres import async_session_maker
 from app.models.user import UserRole
-from app.models.group import StudyGroup
 from app.frontend.deps.auth import require_roles
 
 
@@ -110,7 +108,7 @@ async def get_me(session):
 
             group_name = "Нет группы"
             if user.group_id:
-                group = await db_session.get(StudyGroup, user.group_id)
+                group = await user_service.get_study_group(user.group_id)
                 group_name = group.name if group else "Неизвестная группа"
 
             return Titled(
@@ -176,7 +174,7 @@ async def get_groups(session):
         return Titled(
             "Группы",
             (
-                Ul(*[Li(f"{g.name} (ID: {g.id})") for g in groups])
+                Ul(*[Li(A(f"{g.name}", href=f"/groups/{g.id}")) for g in groups])
                 if groups
                 else P("Групп пока нет.")
             ),
@@ -204,18 +202,78 @@ async def post_groups(session, name: str):
             return Titled("Ошибка", Div(P(e.detail), A("Назад", href="/groups")))
 
 
-@rt("/users/{target_user_id}/group", methods=["POST"])
-async def post_user_group(session, target_user_id: str, group_id: str):
+@rt("/groups/{group_id}", methods=["GET"])
+async def get_group_detail(session, group_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    gid = uuid.UUID(group_id)
+    async with async_session_maker() as db_session:
+        user_service = UserService(db_session)
+        group = await user_service.get_study_group(gid)
+        users = await user_service.get_group_users(gid)
+
+        user_rows = [
+            Tr(
+                Td(u.full_name),
+                Td(u.email),
+                Td(
+                    Button(
+                        "Удалить из группы",
+                        hx_post=f"/groups/{gid}/remove/{u.id}",
+                        hx_target="closest tr",
+                        hx_swap="outerHTML",
+                    )
+                ),
+            )
+            for u in users
+        ]
+
+        return Titled(
+            f"Группа: {group.name}",
+            Div(
+                H3("Участники"),
+                Table(
+                    Thead(Tr(Th("Имя"), Th("Email"), Th("Действие"))),
+                    Tbody(*user_rows),
+                    border="1",
+                ),
+                Hr(),
+                H4("Пригласить студента (по email)"),
+                Form(
+                    Input(name="email", placeholder="Email студента", required=True),
+                    Button("Пригласить"),
+                    method="post",
+                    action=f"/groups/{gid}/invite",
+                ),
+                Hr(),
+                A("Назад к списку групп", href="/groups"),
+            ),
+        )
+
+
+@rt("/groups/{group_id}/invite", methods=["POST"])
+async def post_invite_to_group(session, group_id: str, email: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    gid = uuid.UUID(group_id)
     async with async_session_maker() as db_session:
         user_service = UserService(db_session)
         try:
-            await user_service.add_user_to_group(
-                user_id=uuid.UUID(target_user_id), group_id=uuid.UUID(group_id)
-            )
-            return RedirectResponse("/me", status_code=303)
+            user = await user_service.get_user_by_email(email)
+            await user_service.add_user_to_group(user.id, gid)
+            return RedirectResponse(f"/groups/{group_id}", status_code=303)
         except HTTPException as e:
-            return Titled("Ошибка", Div(P(e.detail), A("Назад", href="/me")))
+            return Titled(
+                "Ошибка", Div(P(e.detail), A("Назад", href=f"/groups/{group_id}"))
+            )
+
+
+@rt("/groups/{group_id}/remove/{user_id}", methods=["POST"])
+async def post_remove_from_group(session, group_id: str, user_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    uid = uuid.UUID(user_id)
+    async with async_session_maker() as db_session:
+        user_service = UserService(db_session)
+        await user_service.remove_user_from_group(uid)
+        return ""  # HTMX target swap
 
 
 @rt("/users/{target_user_id}/promote", methods=["POST"])

@@ -76,6 +76,19 @@ class UserService:
         result = await self.session.execute(statement)
         return result.scalars().all()
 
+    async def get_study_group(self, group_id: uuid.UUID) -> StudyGroup:
+        group = await self.session.get(StudyGroup, group_id)
+        if not group:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Group not found"
+            )
+        return group
+
+    async def get_group_users(self, group_id: uuid.UUID) -> List[User]:
+        statement = select(User).where(User.group_id == group_id)
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
     async def get_user_by_id(self, user_id: uuid.UUID) -> User:
         user = await self.session.get(User, user_id)
         if not user:
@@ -84,15 +97,29 @@ class UserService:
             )
         return user
 
+    async def get_user_by_email(self, email: str) -> User:
+        statement = select(User).where(User.email == email)
+        result = await self.session.execute(statement)
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
+        return user
+
     async def add_user_to_group(self, user_id: uuid.UUID, group_id: uuid.UUID) -> User:
         user = await self.get_user_by_id(user_id)
-        group = await self.session.get(StudyGroup, group_id)
-        if not group:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Group not found"
-            )
+        group = await self.get_study_group(group_id)
 
         user.group_id = group.id
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
+    async def remove_user_from_group(self, user_id: uuid.UUID) -> User:
+        user = await self.get_user_by_id(user_id)
+        user.group_id = None
         self.session.add(user)
         await self.session.commit()
         await self.session.refresh(user)
@@ -125,11 +152,7 @@ class UserService:
         return user
 
     async def update_group(self, group_id: uuid.UUID, name: str) -> StudyGroup:
-        group = await self.session.get(StudyGroup, group_id)
-        if not group:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Group not found"
-            )
+        group = await self.get_study_group(group_id)
 
         if name != group.name:
             statement = select(StudyGroup).where(StudyGroup.name == name)
