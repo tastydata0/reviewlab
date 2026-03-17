@@ -13,6 +13,8 @@ if True:  # чтобы ruff и прочие не убрали
     from app.models.user import User  # noqa: F401
     from app.models.group import StudyGroup  # noqa: F401
     from app.models.submission import Submission  # noqa: F401
+    from app.models.course import Course  # noqa: F401
+    from app.models.links import CourseUserLink  # noqa: F401
     from app.models.task_group import TaskGroup  # noqa: F401
     from app.models.task import Task  # noqa: F401
 

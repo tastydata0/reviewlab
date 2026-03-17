@@ -1,11 +1,13 @@
 import enum
 import uuid
-from typing import Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from pydantic import EmailStr
 from sqlmodel import SQLModel, Field, Relationship
+from app.models.links import CourseUserLink
 
 if TYPE_CHECKING:
     from .group import StudyGroup
+    from .course import Course
 
 class UserRole(str, enum.Enum):
     student = "student"
@@ -21,3 +23,5 @@ class User(SQLModel, table=True):
     
     group_id: Optional[uuid.UUID] = Field(default=None, foreign_key="studygroup.id")
     group: Optional["StudyGroup"] = Relationship(back_populates="users")
+    
+    courses: List["Course"] = Relationship(back_populates="users", link_model=CourseUserLink)
