@@ -1,4 +1,5 @@
 import uuid
+import markdown
 from fasthtml.common import *
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
@@ -229,10 +230,20 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
         else:
             task_items = []
             for t in lab.tasks:
+                # Рендеринг Markdown для описания задачи
+                rendered_description = NotStr(
+                    markdown.markdown(
+                        t.description or "",
+                        extensions=["extra", "codehilite", "sane_lists"],
+                    )
+                )
                 task_items.append(
                     Li(
                         B(t.name),
-                        P(t.description) if t.description else "",
+                        Div(
+                            rendered_description,
+                            style="margin-top: 10px; margin-bottom: 10px; border-left: 3px solid #ccc; padding-left: 10px;",
+                        ),
                         P(f"Код для сдачи: ", Code(t.join_code)),
                     )
                 )
@@ -249,8 +260,8 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
                         ),
                         Textarea(
                             name="description",
-                            placeholder="Содержание задачи (что нужно сделать)",
-                            rows="5",
+                            placeholder="Содержание задачи (Markdown поддерживается)",
+                            rows="10",
                         ),
                         Button("Создать задачу"),
                         method="post",
