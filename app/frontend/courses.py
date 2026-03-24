@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.base import rt
 from app.services.course import CourseService
 from app.services.task import TaskService
+from app.services.submission import SubmissionService
 from app.storage.postgres import async_session_maker
 from app.models.user import UserRole, User
 from app.models.group import StudyGroup
@@ -213,6 +214,7 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
     )
     cid = uuid.UUID(course_id)
     lid = uuid.UUID(lab_id)
+    user_id = uuid.UUID(session["user_id"])
     role = session["role"]
 
     async with async_session_maker() as db_session:
@@ -245,9 +247,43 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
                             style="margin-top: 10px; margin-bottom: 10px; border-left: 3px solid #ccc; padding-left: 10px;",
                         ),
                         P(f"Код для сдачи: ", Code(t.join_code)),
+                        Form(
+                            Input(type="hidden", name="task_id", value=t.join_code),
+                            Input(
+                                type="file", name="files", multiple=True, required=True
+                            ),
+                            Button("Сдать решение", type="submit"),
+                            method="post",
+                            action=f"/courses/{cid}/labs/{lid}/tasks/{t.join_code}/submit",
+                            enctype="multipart/form-data",
+                            style="margin-top: 5px;",
+                        ),
                     )
                 )
             content.append(Ul(*task_items))
+
+        if role == UserRole.student.value:
+            async with async_session_maker() as db_session:
+                sub_service = SubmissionService(db_session)
+                user_subs = await sub_service.get_user_submissions(user_id)
+                task_codes = [t.join_code for t in lab.tasks]
+                lab_subs = [s for s in user_subs if s.task_id in task_codes]
+
+                if lab_subs:
+                    content.extend(
+                        [
+                            Hr(),
+                            H3("Ваши отправки"),
+                            Ul(
+                                *[
+                                    Li(
+                                        f"{s.timestamp.strftime('%Y-%m-%d %H:%M:%S')} - Статус: {s.status}"
+                                    )
+                                    for s in lab_subs
+                                ]
+                            ),
+                        ]
+                    )
 
         if role in (UserRole.teacher.value, UserRole.admin.value):
             content.extend(
@@ -274,6 +310,33 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
         content.append(A("Назад к курсу", href=f"/courses/{cid}"))
 
         return Titled(f"Лабораторная работа: {lab.name}", Div(*content))
+
+
+@rt("/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/submit", methods=["POST"])
+async def post_submit_task(
+    session, course_id: str, lab_id: str, task_id: str, files: list[UploadFile]
+):
+    require_roles(session, [UserRole.student.value])
+    user_id = uuid.UUID(session["user_id"])
+
+    source_code = {}
+    for f in files:
+        content = await f.read()
+        try:
+            source_code[f.filename] = content.decode("utf-8")
+        except UnicodeDecodeError:
+            return Titled(
+                "Ошибка",
+                P(f"Файл {f.filename} не является текстовым файлом"),
+                A("Назад", href=f"/courses/{course_id}/labs/{lab_id}"),
+            )
+
+    async with async_session_maker() as db_session:
+        service = SubmissionService(db_session)
+        await service.create_submission(
+            user_id=user_id, task_id=task_id, source_code=source_code
+        )
+        return RedirectResponse(f"/courses/{course_id}/labs/{lab_id}", status_code=303)
 
 
 @rt("/courses/{course_id}/labs", methods=["POST"])
