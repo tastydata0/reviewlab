@@ -1,16 +1,23 @@
 import uuid
-from typing import List
+import logging
+from typing import List, Optional
 from sqlmodel import select, desc
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import HTTPException, status
 
 from app.models.submission import Submission, SubmissionStatus
 from app.models.task import Task
+from app.services.mq import RabbitMQService
+
+logger = logging.getLogger(__name__)
 
 
 class SubmissionService:
-    def __init__(self, session: AsyncSession):
+    def __init__(
+        self, session: AsyncSession, mq_service: Optional[RabbitMQService] = None
+    ):
         self.session = session
+        self.mq_service = mq_service
 
     async def create_submission(
         self,
@@ -39,13 +46,14 @@ class SubmissionService:
         await self.session.commit()
         await self.session.refresh(submission)
 
-        await self._trigger_processing(submission)
+        if self.mq_service:
+            await self.mq_service.publish_submission(str(submission.id))
+        else:
+            logger.warning(
+                f"Submission {submission.id} created but no MQ service provided"
+            )
 
         return submission
-
-    async def _trigger_processing(self, submission: Submission):
-        # TODO: работа с брокером
-        pass
 
     async def get_user_submissions(self, user_id: uuid.UUID) -> List[Submission]:
         statement = (

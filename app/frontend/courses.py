@@ -9,6 +9,7 @@ from app.base import rt
 from app.services.course import CourseService
 from app.services.task import TaskService
 from app.services.submission import SubmissionService
+from app.api.deps.mq import get_mq_service
 from app.storage.postgres import async_session_maker
 from app.models.user import UserRole, User
 from app.models.group import StudyGroup
@@ -332,7 +333,8 @@ async def post_submit_task(
             )
 
     async with async_session_maker() as db_session:
-        service = SubmissionService(db_session)
+        mq_service = await get_mq_service()
+        service = SubmissionService(db_session, mq_service=mq_service)
         await service.create_submission(
             user_id=user_id, task_id=task_id, source_code=source_code
         )

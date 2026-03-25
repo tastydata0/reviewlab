@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     POSTGRES_DSN: SecretStr
     OPENAI_API_KEY: SecretStr
     OPENAI_API_BASE_URL: str
+    RABBITMQ_URL: str
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

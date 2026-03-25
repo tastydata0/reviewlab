@@ -27,6 +27,8 @@ dependencies = [
     "python-fasthtml>=0.12.50",
     "uvicorn>=0.42.0",
     "markdown>=3.10.2",
+    "aio-pika>=9.6.2",
+    "faststream[rabbit]>=0.6.7",
 ]
 
 [dependency-groups]
