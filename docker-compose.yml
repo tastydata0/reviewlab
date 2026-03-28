@@ -1,0 +1,37 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: vkr-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: vkr_user
+      POSTGRES_PASSWORD: vkr_password
+      POSTGRES_DB: vkr_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - vkr_pgdata:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: vkr-rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - vkr_rabbitmq_data:/var/lib/rabbitmq
+
+  redis:
+    image: redis:7-alpine
+    container_name: vkr-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - vkr_redis_data:/data
+
+volumes:
+  vkr_pgdata:
+  vkr_rabbitmq_data:
+  vkr_redis_data:
