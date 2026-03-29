@@ -26,9 +26,16 @@ class AuthService:
 
     @staticmethod
     def create_access_token(
-        user_id: str, role: UserRole, expires_delta: Optional[dt.timedelta] = None
+        user_id: str,
+        role: UserRole,
+        full_name: str,
+        expires_delta: Optional[dt.timedelta] = None,
     ) -> str:
-        to_encode = {"sub": str(user_id), "role": role.value}
+        to_encode: Dict[str, Any] = {
+            "sub": str(user_id),
+            "role": role.value,
+            "full_name": full_name,
+        }
         if expires_delta:
             expire = dt.datetime.now(dt.timezone.utc) + expires_delta
         else:

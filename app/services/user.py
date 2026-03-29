@@ -53,7 +53,10 @@ class UserService:
             )
 
         return AuthService.create_access_token(
-            user_id=str(user.id), role=user.role, expires_delta=dt.timedelta(expires_in)
+            user_id=str(user.id),
+            role=user.role,
+            full_name=user.full_name,
+            expires_delta=dt.timedelta(minutes=expires_in),
         )
 
     async def create_study_group(self, name: str) -> StudyGroup:
