@@ -23,11 +23,13 @@ class Submission(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
     task_id: str = Field(index=True)  # JOIN_CODE
     timestamp: dt.datetime = Field(default_factory=dt.datetime.now)
-    source_code: dict[str, str] = Field(sa_column=Column(JSON))  # filename -> content
+    source_code: dict[str, str] = Field(
+        default_factory=dict, sa_type=JSON
+    )  # filename -> content
     language: str = Field(default="python")
 
     status: SubmissionStatus = Field(default=SubmissionStatus.CREATED)
-    metrics: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    metrics: Optional[dict] = Field(default=None, sa_type=JSON)
     linter_report: Optional[str] = Field(default=None)
 
     ai_review: Optional[str] = Field(default=None)
