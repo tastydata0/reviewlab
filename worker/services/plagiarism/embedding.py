@@ -1,17 +1,17 @@
 import math
 from itertools import combinations
 
-from app.models.plagiarism import CodeSubmission, PlagiarismMatch
-from app.services.plagiarism.base import BasePlagiarismStrategy
-from app.utils.embedding.main import embed_768
+from ...models.plagiarism import CodeSubmission, PlagiarismMatch
+from ...services.plagiarism.base import BasePlagiarismStrategy
+from ...utils.embedding.main import embed_768
 
 
 class SingleEmbeddingStrategy(BasePlagiarismStrategy):
     """
     Стратегия 5 (Упрощенная). Семантическая (Vector Embeddings) без разбиения на чанки.
-    
-    Весь исходный код посылки целиком отправляется в модель для получения 
-    векторного представления (эмбеддинга). Сходство между посылками 
+
+    Весь исходный код посылки целиком отправляется в модель для получения
+    векторного представления (эмбеддинга). Сходство между посылками
     определяется через косинусное расстояние между их векторами.
     """
 
@@ -25,7 +25,7 @@ class SingleEmbeddingStrategy(BasePlagiarismStrategy):
 
     async def check(self, submissions: list[CodeSubmission]) -> list[PlagiarismMatch]:
         matches = []
-        
+
         # Получаем эмбеддинги для всех посылок O(N) запросов к API/модели
         submission_embeddings = {}
         for sub in submissions:
@@ -35,17 +35,17 @@ class SingleEmbeddingStrategy(BasePlagiarismStrategy):
         for sub_a, sub_b in combinations(submissions, 2):
             vec_a = submission_embeddings[sub_a.id]
             vec_b = submission_embeddings[sub_b.id]
-            
+
             similarity = self._cosine_similarity(vec_a, vec_b)
             # Переводим косинусное сходство [-1, 1] в проценты [0, 100]
             score = float(max(0.0, similarity * 100.0))
-            
+
             matches.append(
                 PlagiarismMatch(
                     source_id=sub_a.id,
                     target_id=sub_b.id,
                     score=score,
-                    details={"method": "single_embedding"}
+                    details={"method": "single_embedding"},
                 )
             )
 

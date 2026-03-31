@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.embedding import Embedding1536, Embedding768
-from app.utils.embedding.main import (
+from ..models.embedding import Embedding1536, Embedding768
+from ..utils.embedding.main import (
     EmbeddingStrategy1536,
     EmbeddingStrategy768,
     embed_1536,

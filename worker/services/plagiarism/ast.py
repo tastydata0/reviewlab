@@ -5,9 +5,9 @@ from itertools import combinations
 from fuzzywuzzy import fuzz
 from tree_sitter import Language, Parser
 
-from app.models.plagiarism import CodeSubmission, PlagiarismMatch
-from app.services.plagiarism.base import BasePlagiarismStrategy
-from app.utils.embedding.main import embed_768
+from ...models.plagiarism import CodeSubmission, PlagiarismMatch
+from ...services.plagiarism.base import BasePlagiarismStrategy
+from ...utils.embedding.main import embed_768
 
 
 class BaseAstStrategy(BasePlagiarismStrategy, ABC):
@@ -133,20 +133,20 @@ class AstJaccardStrategy(BaseAstStrategy):
         ngrams = set()
         if len(tokens) < self.n_gram_size:
             return {tuple(tokens)} if tokens else set()
-            
+
         for i in range(len(tokens) - self.n_gram_size + 1):
-            ngrams.add(tuple(tokens[i:i + self.n_gram_size]))
+            ngrams.add(tuple(tokens[i : i + self.n_gram_size]))
         return ngrams
 
     async def _compare_asts(self, ast_seq_a: str, ast_seq_b: str) -> float:
         ngrams_a = self._get_ngrams(ast_seq_a)
         ngrams_b = self._get_ngrams(ast_seq_b)
-        
+
         if not ngrams_a and not ngrams_b:
             return 100.0
         elif not ngrams_a or not ngrams_b:
             return 0.0
-            
+
         intersection = len(ngrams_a.intersection(ngrams_b))
         union = len(ngrams_a.union(ngrams_b))
         return float((intersection / union) * 100.0)

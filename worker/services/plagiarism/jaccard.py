@@ -3,8 +3,8 @@ from itertools import combinations
 from pygments.lexers import get_lexer_by_name, guess_lexer
 from pygments.token import Token
 
-from app.models.plagiarism import CodeSubmission, PlagiarismMatch
-from app.services.plagiarism.base import BasePlagiarismStrategy
+from ...models.plagiarism import CodeSubmission, PlagiarismMatch
+from ...services.plagiarism.base import BasePlagiarismStrategy
 
 
 class JaccardStrategy(BasePlagiarismStrategy):

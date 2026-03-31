@@ -2,10 +2,10 @@ import math
 from itertools import combinations
 from typing import List
 
-from app.models.plagiarism import CodeSubmission, PlagiarismMatch
-from app.services.plagiarism.base import BasePlagiarismStrategy
-from app.utils.chunking import CppChunker, JavaChunker, PythonChunker
-from app.utils.embedding.main import embed_1536
+from ...models.plagiarism import CodeSubmission, PlagiarismMatch
+from ...services.plagiarism.base import BasePlagiarismStrategy
+from ...utils.chunking import CppChunker, JavaChunker, PythonChunker
+from ...utils.embedding.main import embed_1536
 
 
 class SemanticChunkingStrategy(BasePlagiarismStrategy):

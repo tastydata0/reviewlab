@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from app.models.plagiarism import CodeSubmission, PlagiarismMatch
+from ...models.plagiarism import CodeSubmission, PlagiarismMatch
 
 
 class BasePlagiarismStrategy(ABC):

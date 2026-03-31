@@ -2,8 +2,8 @@ from itertools import combinations
 
 from fuzzywuzzy import fuzz
 
-from app.models.plagiarism import CodeSubmission, PlagiarismMatch
-from app.services.plagiarism.base import BasePlagiarismStrategy
+from ...models.plagiarism import CodeSubmission, PlagiarismMatch
+from ...services.plagiarism.base import BasePlagiarismStrategy
 
 
 class LevenshteinStrategy(BasePlagiarismStrategy):

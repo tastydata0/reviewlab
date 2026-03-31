@@ -3,8 +3,8 @@ from pathlib import Path
 
 from copydetect import CopyDetector
 
-from app.models.plagiarism import CodeSubmission, PlagiarismMatch
-from app.services.plagiarism.base import BasePlagiarismStrategy
+from ...models.plagiarism import CodeSubmission, PlagiarismMatch
+from ...services.plagiarism.base import BasePlagiarismStrategy
 
 
 class CopydetectStrategy(BasePlagiarismStrategy):
