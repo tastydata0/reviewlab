@@ -3,7 +3,12 @@ from typing import List, Dict
 from tree_sitter import Language, Parser, Query, QueryCursor
 
 class BaseChunker(ABC):
-    def __init__(self):
+    def __init__(self, mode="function"):
+        """
+        Инициализация чанкера.
+        :param mode: "function" (по умолчанию) или "class".
+        """
+        self.mode = mode
         self.language = self._get_language()
         self.parser = Parser(self.language)
 
@@ -12,8 +17,17 @@ class BaseChunker(ABC):
         pass
 
     @abstractmethod
-    def _get_chunk_query(self) -> str:
+    def _get_function_query(self) -> str:
         pass
+
+    @abstractmethod
+    def _get_class_query(self) -> str:
+        pass
+
+    def _get_chunk_query(self) -> str:
+        if self.mode == "class":
+            return self._get_class_query()
+        return self._get_function_query()
 
     def _execute_query(self, query_str: str, node) -> List[tuple]:
         query = Query(self.language, query_str)
@@ -36,7 +50,7 @@ class BaseChunker(ABC):
 
         chunks = []
         for node, tag in captures:
-            if tag in ["function", "method"]:
+            if tag in ["function", "method", "class"]:
                 name_node = node.child_by_field_name("name")
 
                 if not name_node and node.type == "function_definition":
@@ -49,7 +63,7 @@ class BaseChunker(ABC):
                             if func_decl and func_decl.type == "function_declarator":
                                 name_node = func_decl.child_by_field_name("declarator")
 
-                func_name = (
+                chunk_name = (
                     source_bytes[name_node.start_byte : name_node.end_byte].decode(
                         "utf-8", errors="ignore"
                     )
@@ -61,6 +75,6 @@ class BaseChunker(ABC):
                 raw_chunk_bytes = source_bytes[node.start_byte : node.end_byte]
                 chunk_code = raw_chunk_bytes.decode("utf-8", errors="ignore")
                 
-                chunks.append({"type": tag, "name": func_name, "code": chunk_code})
+                chunks.append({"type": tag, "name": chunk_name, "code": chunk_code})
 
         return chunks

@@ -6,8 +6,15 @@ class JavaChunker(BaseChunker):
     def _get_language(self) -> Language:
         return Language(tsjava.language())
 
-    def _get_chunk_query(self) -> str:
+    def _get_function_query(self) -> str:
         return """
         (method_declaration) @method
         (constructor_declaration) @method
+        """
+
+    def _get_class_query(self) -> str:
+        return """
+        (class_declaration) @class
+        (interface_declaration) @class
+        (enum_declaration) @class
         """

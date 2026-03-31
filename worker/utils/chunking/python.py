@@ -6,5 +6,8 @@ class PythonChunker(BaseChunker):
     def _get_language(self) -> Language:
         return Language(tspython.language())
 
-    def _get_chunk_query(self) -> str:
+    def _get_function_query(self) -> str:
         return "(function_definition) @function"
+
+    def _get_class_query(self) -> str:
+        return "(class_definition) @class"
