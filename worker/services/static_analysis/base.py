@@ -1,20 +1,23 @@
 import asyncio
 import logging
 from abc import ABC
+from typing import List
 
 logger = logging.getLogger(__name__)
 
 
 class BaseStaticAnalysisStrategy(ABC):
-    def __init__(self, cmd_template: str):
-        self.cmd_template = cmd_template
+    def __init__(self, program: str, args: List[str]):
+        self.program = program
+        self.args = args
 
     async def analyze(self, files_dir: str, timeout: int) -> str:
-        cmd = self.cmd_template.format(files=files_dir)
+        current_args = self.args + [files_dir]
         process = None
         try:
-            process = await asyncio.create_subprocess_shell(
-                cmd,
+            process = await asyncio.create_subprocess_exec(
+                self.program,
+                *current_args,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -27,5 +30,5 @@ class BaseStaticAnalysisStrategy(ABC):
                 process.kill()
             return "Linter execution timed out."
         except Exception as e:
-            logger.error(f"Error running linter '{cmd}': {e}")
+            logger.error(f"Error running linter '{self.program}': {e}")
             return f"Error: {e}"
