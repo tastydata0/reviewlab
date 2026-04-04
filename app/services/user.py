@@ -1,6 +1,6 @@
 import uuid
 import datetime as dt
-from typing import Optional, List
+from typing import Optional
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from fastapi import HTTPException, status
@@ -74,7 +74,7 @@ class UserService:
         await self.session.refresh(group)
         return group
 
-    async def get_all_study_groups(self) -> List[StudyGroup]:
+    async def get_all_study_groups(self) -> list[StudyGroup]:
         statement = select(StudyGroup)
         result = await self.session.execute(statement)
         return result.scalars().all()
@@ -87,7 +87,7 @@ class UserService:
             )
         return group
 
-    async def get_group_users(self, group_id: uuid.UUID) -> List[User]:
+    async def get_group_users(self, group_id: uuid.UUID) -> list[User]:
         statement = select(User).where(User.group_id == group_id)
         result = await self.session.execute(statement)
         return result.scalars().all()

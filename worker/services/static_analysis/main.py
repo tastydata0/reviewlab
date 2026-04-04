@@ -1,8 +1,8 @@
 import os
-import asyncio
 import tempfile
 import logging
-from typing import Optional, Dict
+from typing import Optional
+
 from worker.config import WORKER_CONFIG
 from worker.services.static_analysis.python import Flake8AnalysisStrategy
 from worker.services.static_analysis.cpp import CppcheckAnalysisStrategy
@@ -19,7 +19,7 @@ class StaticAnalysisService:
             "java": CheckstyleAnalysisStrategy(),
         }
 
-    def _autodetect_language(self, source_code: Dict[str, str]) -> str:
+    def _autodetect_language(self, source_code: dict[str, str]) -> str:
         extensions = {
             ".py": "python",
             ".cpp": "cpp",
@@ -44,7 +44,7 @@ class StaticAnalysisService:
         return detected
 
     async def analyze(
-        self, source_code: Dict[str, str], language: Optional[str] = None
+        self, source_code: dict[str, str], language: Optional[str] = None
     ) -> Optional[str]:
         if not WORKER_CONFIG.static_analysis.enabled:
             logger.info("Static analysis is disabled in config.")

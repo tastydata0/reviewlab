@@ -1,6 +1,6 @@
 import uuid
 import logging
-from typing import List, Optional
+from typing import Optional
 from sqlmodel import select, desc
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import HTTPException, status
@@ -55,7 +55,7 @@ class SubmissionService:
 
         return submission
 
-    async def get_user_submissions(self, user_id: uuid.UUID) -> List[Submission]:
+    async def get_user_submissions(self, user_id: uuid.UUID) -> list[Submission]:
         statement = (
             select(Submission)
             .where(Submission.user_id == user_id)
@@ -64,7 +64,7 @@ class SubmissionService:
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def get_task_submissions(self, task_id: str) -> List[Submission]:
+    async def get_task_submissions(self, task_id: str) -> list[Submission]:
         statement = (
             select(Submission)
             .where(Submission.task_id == task_id.upper())

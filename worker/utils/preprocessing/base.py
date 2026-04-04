@@ -1,7 +1,7 @@
 import re
 from abc import ABC, abstractmethod
-from typing import List
 from tree_sitter import Language, Parser, Query, QueryCursor
+
 
 class BasePreprocessor(ABC):
     def __init__(self):
@@ -12,7 +12,7 @@ class BasePreprocessor(ABC):
     def _get_language(self) -> Language:
         pass
 
-    def _execute_query(self, query_str: str, node) -> List[tuple]:
+    def _execute_query(self, query_str: str, node) -> list[tuple]:
         query = Query(self.language, query_str)
         cursor = QueryCursor(query)
         captures_dict = cursor.captures(node)

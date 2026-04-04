@@ -1,5 +1,4 @@
 import uuid
-from typing import List
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -15,7 +14,7 @@ router = APIRouter(prefix="/submissions", tags=["submissions"])
 @router.post("/", response_model=Submission, status_code=status.HTTP_201_CREATED)
 async def create_submission(
     task_id: str = Form(...),
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     language: str = Form("python"),
     user_id: uuid.UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
@@ -43,7 +42,7 @@ async def create_submission(
     )
 
 
-@router.get("/my", response_model=List[Submission])
+@router.get("/my", response_model=list[Submission])
 async def get_my_submissions(
     user_id: uuid.UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),

@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import Optional
 from sqlmodel import select
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -22,7 +22,7 @@ class TaskService:
         await self.session.refresh(group)
         return group
 
-    async def get_course_task_groups(self, course_id: uuid.UUID) -> List[TaskGroup]:
+    async def get_course_task_groups(self, course_id: uuid.UUID) -> list[TaskGroup]:
         statement = select(TaskGroup).where(TaskGroup.course_id == course_id)
         result = await self.session.execute(statement)
         return result.scalars().all()

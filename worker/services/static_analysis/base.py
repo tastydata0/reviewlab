@@ -1,13 +1,12 @@
 import asyncio
 import logging
 from abc import ABC
-from typing import List
 
 logger = logging.getLogger(__name__)
 
 
 class BaseStaticAnalysisStrategy(ABC):
-    def __init__(self, program: str, args: List[str]):
+    def __init__(self, program: str, args: list[str]):
         self.program = program
         self.args = args
 

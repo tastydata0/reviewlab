@@ -1,8 +1,7 @@
 import math
-from typing import List
 
 
-def normalize_zscore(scores: List[float], max_z: float = 3.0) -> List[float]:
+def normalize_zscore(scores: list[float], max_z: float = 3.0) -> list[float]:
     if not scores:
         return []
 

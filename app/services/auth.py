@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 import jwt
 import bcrypt
 from app.settings import SETTINGS
@@ -31,7 +31,7 @@ class AuthService:
         full_name: str,
         expires_delta: Optional[dt.timedelta] = None,
     ) -> str:
-        to_encode: Dict[str, Any] = {
+        to_encode: dict[str, Any] = {
             "sub": str(user_id),
             "role": role.value,
             "full_name": full_name,
@@ -51,7 +51,7 @@ class AuthService:
         return encoded_jwt
 
     @staticmethod
-    def decode_token(token: str) -> Dict[str, Any]:
+    def decode_token(token: str) -> dict[str, Any]:
         try:
             payload = jwt.decode(
                 token,
@@ -73,7 +73,7 @@ class AuthService:
             )
 
     @staticmethod
-    def check_permission(token: str, allowed_roles: list[UserRole]) -> Dict[str, Any]:
+    def check_permission(token: str, allowed_roles: list[UserRole]) -> dict[str, Any]:
         payload = AuthService.decode_token(token)
         role_str = payload.get("role")
         if not role_str or UserRole(role_str) not in allowed_roles:

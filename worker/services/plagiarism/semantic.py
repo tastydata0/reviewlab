@@ -1,6 +1,5 @@
 import math
 from itertools import combinations
-from typing import List
 
 from ...models.plagiarism import CodeSubmission, PlagiarismMatch
 from ...services.plagiarism.base import BasePlagiarismStrategy
@@ -40,7 +39,7 @@ class SemanticChunkingStrategy(BasePlagiarismStrategy):
             return 0.0
         return dot_product / (magnitude1 * magnitude2)
 
-    async def check(self, submissions: List[CodeSubmission]) -> List[PlagiarismMatch]:
+    async def check(self, submissions: list[CodeSubmission]) -> list[PlagiarismMatch]:
         matches = []
 
         # разбиение на чанки и генерация эмбеддингов

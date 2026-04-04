@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 
 from app.models.links import CourseUserLink
@@ -15,7 +15,7 @@ class Course(SQLModel, table=True):
     description: Optional[str] = Field(default=None)
     teacher_id: uuid.UUID = Field(foreign_key="user.id")
 
-    users: List["User"] = Relationship(
+    users: list["User"] = Relationship(
         back_populates="courses", link_model=CourseUserLink
     )
-    task_groups: List["TaskGroup"] = Relationship(back_populates="course")
+    task_groups: list["TaskGroup"] = Relationship(back_populates="course")
