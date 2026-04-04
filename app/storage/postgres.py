@@ -9,7 +9,6 @@ from app.settings import SETTINGS
 
 # Убедимся, что модели зарегистрированы в SQLModel.metadata
 if True:  # чтобы ruff и прочие не убрали
-    from app.models.embedding import Embedding768, Embedding1536  # noqa: F401
     from app.models.user import User  # noqa: F401
     from app.models.group import StudyGroup  # noqa: F401
     from app.models.submission import Submission  # noqa: F401
