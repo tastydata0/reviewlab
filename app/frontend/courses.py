@@ -208,6 +208,111 @@ async def get_course_detail(session, course_id: str):
         return Titled(f"Курс: {course.name}", Div(*content))
 
 
+def render_task_item(t, cid, lid, role):
+    # Рендеринг Markdown для описания задачи
+    rendered_description = NotStr(
+        markdown.markdown(
+            t.description or "",
+            extensions=["extra", "codehilite", "sane_lists"],
+        )
+    )
+
+    title_elements = [B(t.name)]
+    if role in (UserRole.teacher.value, UserRole.admin.value):
+        title_elements.append(
+            A(
+                " ✏️",
+                hx_get=f"/courses/{cid}/labs/{lid}/tasks/{t.id}/edit",
+                hx_target=f"#task-{t.id}",
+                hx_swap="outerHTML",
+                style="text-decoration: none; cursor: pointer;",
+            )
+        )
+
+    return Li(
+        Div(*title_elements),
+        Div(
+            rendered_description,
+            style="margin-top: 10px; margin-bottom: 10px; border-left: 3px solid #ccc; padding-left: 10px;",
+        ),
+        P(f"Код для сдачи: ", Code(t.join_code)),
+        Form(
+            Input(type="hidden", name="task_id", value=t.join_code),
+            Input(type="file", name="files", multiple=True, required=True),
+            Button("Сдать решение", type="submit"),
+            method="post",
+            action=f"/courses/{cid}/labs/{lid}/tasks/{t.join_code}/submit",
+            enctype="multipart/form-data",
+            style="margin-top: 5px;",
+        ),
+        id=f"task-{t.id}",
+    )
+
+
+@rt("/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/edit", methods=["GET"])
+async def get_edit_task(session, course_id: str, lab_id: str, task_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    tid = uuid.UUID(task_id)
+    async with async_session_maker() as db_session:
+        task = await TaskService(db_session).get_task(tid)
+        return Form(
+            Label(
+                "Название задачи", Input(name="name", value=task.name, required=True)
+            ),
+            Label(
+                "Описание (Markdown)",
+                Textarea(
+                    task.description or "",
+                    name="description",
+                    rows="10",
+                    placeholder="Описание (Markdown)",
+                ),
+            ),
+            Div(
+                Button("Сохранить"),
+                A(
+                    "Отмена",
+                    hx_get=f"/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/cancel",
+                    hx_target=f"#task-{task_id}",
+                    hx_swap="outerHTML",
+                    style="margin-left: 10px; cursor: pointer;",
+                ),
+                style="margin-top: 10px;",
+            ),
+            hx_post=f"/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/edit",
+            hx_target=f"#task-{task_id}",
+            hx_swap="outerHTML",
+            id=f"task-{task_id}",
+        )
+
+
+@rt("/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/cancel", methods=["GET"])
+async def get_cancel_edit_task(session, course_id: str, lab_id: str, task_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    tid = uuid.UUID(task_id)
+    role = session["role"]
+    async with async_session_maker() as db_session:
+        task = await TaskService(db_session).get_task(tid)
+        return render_task_item(task, course_id, lab_id, role)
+
+
+@rt("/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/edit", methods=["POST"])
+async def post_edit_task(
+    session,
+    course_id: str,
+    lab_id: str,
+    task_id: str,
+    name: str,
+    description: str = "",
+):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    tid = uuid.UUID(task_id)
+    role = session["role"]
+    async with async_session_maker() as db_session:
+        task = await TaskService(db_session).update_task(tid, name, description)
+        return render_task_item(task, course_id, lab_id, role)
+
+
 @rt("/courses/{course_id}/labs/{lab_id}", methods=["GET"])
 async def get_lab_detail(session, course_id: str, lab_id: str):
     require_roles(
@@ -231,36 +336,7 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
         if not lab.tasks:
             content.append(P("Задач в этой лабораторной работе пока нет."))
         else:
-            task_items = []
-            for t in lab.tasks:
-                # Рендеринг Markdown для описания задачи
-                rendered_description = NotStr(
-                    markdown.markdown(
-                        t.description or "",
-                        extensions=["extra", "codehilite", "sane_lists"],
-                    )
-                )
-                task_items.append(
-                    Li(
-                        B(t.name),
-                        Div(
-                            rendered_description,
-                            style="margin-top: 10px; margin-bottom: 10px; border-left: 3px solid #ccc; padding-left: 10px;",
-                        ),
-                        P(f"Код для сдачи: ", Code(t.join_code)),
-                        Form(
-                            Input(type="hidden", name="task_id", value=t.join_code),
-                            Input(
-                                type="file", name="files", multiple=True, required=True
-                            ),
-                            Button("Сдать решение", type="submit"),
-                            method="post",
-                            action=f"/courses/{cid}/labs/{lid}/tasks/{t.join_code}/submit",
-                            enctype="multipart/form-data",
-                            style="margin-top: 5px;",
-                        ),
-                    )
-                )
+            task_items = [render_task_item(t, cid, lid, role) for t in lab.tasks]
             content.append(Ul(*task_items))
 
         if role == UserRole.student.value:

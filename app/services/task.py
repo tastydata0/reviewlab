@@ -70,3 +70,25 @@ class TaskService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
             )
         return task
+
+    async def get_task(self, task_id: uuid.UUID) -> Task:
+        task = await self.session.get(Task, task_id)
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            )
+        return task
+
+    async def update_task(
+        self,
+        task_id: uuid.UUID,
+        name: str,
+        description: Optional[str] = None,
+    ) -> Task:
+        task = await self.get_task(task_id)
+        task.name = name
+        task.description = description
+        self.session.add(task)
+        await self.session.commit()
+        await self.session.refresh(task)
+        return task
