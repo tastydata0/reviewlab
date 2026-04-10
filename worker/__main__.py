@@ -3,15 +3,24 @@ import logging
 import uuid
 from faststream import FastStream
 from faststream.rabbit import RabbitBroker
+from sqlmodel import select
+
 from app.storage.postgres import async_session_maker
 from app.models.submission import Submission, SubmissionStatus
+from app.models.task import Task
 from app.settings import SETTINGS
+
+from worker.services.static_analysis.main import StaticAnalysisService
+from worker.services.llm_mentor.main import LLMMentorService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("vkr_worker")
 
 broker = RabbitBroker(SETTINGS.RABBITMQ_URL)
 app = FastStream(broker)
+
+static_analysis_service = StaticAnalysisService()
+llm_mentor_service = LLMMentorService()
 
 
 @broker.subscriber("submission_tasks")
@@ -30,9 +39,34 @@ async def handle_submission(msg: dict):
         await session.commit()
 
         logger.info(f"Running analysis for submission {submission_id}...")
-        await asyncio.sleep(5)
+
+        linter_report = await static_analysis_service.analyze(
+            source_code=submission.source_code, language=submission.language
+        )
+        if linter_report:
+            submission.linter_report = linter_report
+
+        statement = select(Task).where(Task.join_code == submission.task_id.upper())
+        result = await session.execute(statement)
+        task = result.scalars().first()
+        task_description = (
+            task.description
+            if task and task.description
+            else "Условие задачи не предоставлено."
+        )
+
+        mentor_response = await llm_mentor_service.analyze(
+            source_code=submission.source_code,
+            task_description=task_description,
+            linter_report=linter_report,
+        )
+
+        if mentor_response:
+            submission.ai_review = mentor_response.review
+            submission.ai_score = mentor_response.score
 
         submission.status = SubmissionStatus.PROCESSED
+
         session.add(submission)
         await session.commit()
         logger.info(f"Finished processing submission {submission_id}")
