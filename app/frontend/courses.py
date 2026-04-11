@@ -9,6 +9,7 @@ from app.base import rt
 from app.services.course import CourseService
 from app.services.task import TaskService
 from app.services.submission import SubmissionService
+from app.services.user import UserService
 from app.api.deps.mq import get_mq_service
 from app.storage.postgres import async_session_maker
 from app.models.user import UserRole, User
@@ -236,6 +237,12 @@ def render_task_item(t, cid, lid, role):
             style="margin-top: 10px; margin-bottom: 10px; border-left: 3px solid #ccc; padding-left: 10px;",
         ),
         P(f"Код для сдачи: ", Code(t.join_code)),
+        P(
+            A(
+                "История моих попыток",
+                href=f"/courses/{cid}/labs/{lid}/tasks/{t.join_code}/my",
+            )
+        ),
         Form(
             Input(type="hidden", name="task_id", value=t.join_code),
             Input(type="file", name="files", multiple=True, required=True),
@@ -311,6 +318,112 @@ async def post_edit_task(
     async with async_session_maker() as db_session:
         task = await TaskService(db_session).update_task(tid, name, description)
         return render_task_item(task, course_id, lab_id, role)
+
+
+def render_submission_card(s):
+    score = s.ai_score or 0
+    score_percent = min(100, score)
+
+    plag_prob = s.plagiarism_score * 100
+
+    linter_lines = []
+    if s.linter_report:
+        linter_lines = s.linter_report.strip().split("\n")
+
+    code_content = ""
+    for filename, content in s.source_code.items():
+        code_content += f"--- {filename} ---\n{content}\n\n"
+
+    return Div(
+        Div(
+            Div(
+                P(
+                    B(f"Общая оценка - {score / 10.0 if score else 0.0}"),
+                    " ✏️",
+                    style="color: #28a745; margin-bottom: 0;",
+                ),
+                Div(
+                    Div(
+                        style=f"width: {score_percent}%;",
+                        _class="progress-bar score-bar",
+                    ),
+                    _class="progress-container",
+                ),
+                P(
+                    B("ИИ-рецензия"),
+                    " ✏️",
+                    style="margin-top: 20px; margin-bottom: 5px;",
+                ),
+                P(
+                    s.ai_review or "Рецензия еще не готова.",
+                    style="font-size: 0.9em; line-height: 1.4;",
+                ),
+                P(B("Плагиат:"), style="margin-top: 20px; margin-bottom: 5px;"),
+                P(f"Вероятность - {plag_prob:.0f}%", style="margin-bottom: 5px;"),
+                Div(
+                    Div(
+                        style=f"width: {plag_prob}%;",
+                        _class="progress-bar plagiarism-bar",
+                    ),
+                    _class="progress-container",
+                ),
+                Div(
+                    A("Плагиат", _class="badge badge-plagiarism", href="#"),
+                    A("Не плагиат", _class="badge badge-not-plagiarism", href="#"),
+                    style="margin-top: 10px;",
+                ),
+                P(
+                    B("Статический анализ:"),
+                    style="margin-top: 20px; margin-bottom: 5px;",
+                ),
+                (
+                    Div(
+                        *[
+                            P(
+                                line,
+                                style="margin: 0; font-size: 0.85em; font-family: monospace;",
+                            )
+                            for line in linter_lines
+                        ]
+                    )
+                    if linter_lines
+                    else P("Ошибок не найдено.", style="font-size: 0.85em;")
+                ),
+                _class="submission-info",
+            ),
+            # Right side: Code
+            Div(code_content, _class="submission-code"),
+            _class="submission-card",
+        ),
+        id=f"submission-{s.id}",
+    )
+
+
+@rt("/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/my", methods=["GET"])
+async def get_my_submissions_for_task(
+    session, course_id: str, lab_id: str, task_id: str
+):
+    require_roles(
+        session, [UserRole.student.value, UserRole.teacher.value, UserRole.admin.value]
+    )
+    user_id = uuid.UUID(session["user_id"])
+
+    async with async_session_maker() as db_session:
+        user = await UserService(db_session).get_user_by_id(user_id)
+        task = await TaskService(db_session).get_task_by_join_code(task_id)
+        submissions = await SubmissionService(db_session).get_user_submissions(user_id)
+        # Filter for this specific task
+        task_submissions = [s for s in submissions if s.task_id == task_id]
+        task_submissions.sort(key=lambda x: x.timestamp, reverse=True)
+
+        cards = [render_submission_card(s) for s in task_submissions]
+
+        return Titled(
+            f"{user.full_name} - {task.name}",
+            A("← Назад к задаче", href=f"/courses/{course_id}/labs/{lab_id}"),
+            Hr(),
+            Div(*cards) if cards else P("Вы еще не отправляли решений по этой задаче."),
+        )
 
 
 @rt("/courses/{course_id}/labs/{lab_id}", methods=["GET"])
