@@ -34,6 +34,9 @@ class LLMMentorService:
         source_code: dict[str, str],
         task_description: str,
         linter_report: Optional[str] = None,
+        previous_source_code: Optional[dict[str, str]] = None,
+        previous_review: Optional[str] = None,
+        previous_linter_report: Optional[str] = None,
     ) -> Optional[LLMMentorResponse]:
         if not WORKER_CONFIG.llm_mentor.enabled:
             logger.info("LLM Mentor is disabled in config.")
@@ -41,15 +44,25 @@ class LLMMentorService:
 
         code_text = self._format_source_code(source_code)
 
-        prompt = (
-            f"Задание:\n{task_description}\n\nИсходный код студента:\n{code_text}\n\n"
-        )
+        prompt = f"Задание:\n{task_description}\n\nТекущий исходный код студента:\n{code_text}\n\n"
 
         if linter_report:
-            prompt += f"Результаты статического анализа (линтер):\n{linter_report}\n\n"
+            prompt += f"Текущие результаты статического анализа (линтер):\n{linter_report}\n\n"
+
+        if previous_source_code or previous_review:
+            prompt += "--- Контекст предыдущей попытки ---\n"
+            if previous_source_code:
+                prev_code_text = self._format_source_code(previous_source_code)
+                prompt += f"Предыдущий код:\n{prev_code_text}\n"
+            if previous_review:
+                prompt += f"Предыдущая рецензия ИИ:\n{previous_review}\n"
+            if previous_linter_report:
+                prompt += f"Предыдущие ошибки линтера:\n{previous_linter_report}\n"
+            prompt += "--- Конец контекста ---\n\n"
 
         prompt += (
-            "Твоя задача: оценить решение от 0 до 100 и дать конструктивный фидбек."
+            "Твоя задача: сравни решение с предыдущим (если оно есть), оцени прогресс, "
+            "оцени текущее решение от 0 до 100 и дай конструктивный фидбек."
         )
 
         try:

@@ -55,10 +55,32 @@ async def handle_submission(msg: dict):
             else "Условие задачи не предоставлено."
         )
 
+        # Fetch previous attempt for context
+        prev_stmt = (
+            select(Submission)
+            .where(
+                Submission.user_id == submission.user_id,
+                Submission.task_id == submission.task_id,
+                Submission.status == SubmissionStatus.PROCESSED,
+                Submission.id != submission.id,
+            )
+            .order_by(Submission.timestamp.desc())
+            .limit(1)
+        )
+        prev_result = await session.execute(prev_stmt)
+        prev_submission = prev_result.scalars().first()
+
         mentor_response = await llm_mentor_service.analyze(
             source_code=submission.source_code,
             task_description=task_description,
             linter_report=linter_report,
+            previous_source_code=(
+                prev_submission.source_code if prev_submission else None
+            ),
+            previous_review=prev_submission.ai_review if prev_submission else None,
+            previous_linter_report=(
+                prev_submission.linter_report if prev_submission else None
+            ),
         )
 
         if mentor_response:
