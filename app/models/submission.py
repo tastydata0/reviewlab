@@ -40,3 +40,8 @@ class Submission(SQLModel, table=True):
     semantic_similarity: float = Field(default=0.0)
     plagiarism_score: float = Field(default=0.0)
     plagiarism_verdict: PlagiarismVerdict = Field(default=PlagiarismVerdict.UNSET)
+
+
+class SubmissionRead(Submission):
+    task_name: Optional[str] = None
+    task_group_name: Optional[str] = None

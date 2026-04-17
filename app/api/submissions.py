@@ -6,7 +6,8 @@ from app.storage.postgres import get_session
 from app.services.submission import SubmissionService
 from app.api.deps.auth import get_current_user_id
 from app.api.deps.mq import get_mq_service, RabbitMQService
-from app.models.submission import Submission
+from app.models.submission import Submission, SubmissionRead
+
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
 
@@ -42,7 +43,7 @@ async def create_submission(
     )
 
 
-@router.get("/my", response_model=list[Submission])
+@router.get("/my", response_model=list[SubmissionRead])
 async def get_my_submissions(
     user_id: uuid.UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),

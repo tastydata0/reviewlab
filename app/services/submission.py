@@ -5,8 +5,9 @@ from sqlmodel import select, desc
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import HTTPException, status
 
-from app.models.submission import Submission, SubmissionStatus
+from app.models.submission import Submission, SubmissionStatus, SubmissionRead
 from app.models.task import Task
+from app.models.task_group import TaskGroup
 from app.services.mq import RabbitMQService
 
 logger = logging.getLogger(__name__)
@@ -55,14 +56,22 @@ class SubmissionService:
 
         return submission
 
-    async def get_user_submissions(self, user_id: uuid.UUID) -> list[Submission]:
+    async def get_user_submissions(self, user_id: uuid.UUID) -> list[SubmissionRead]:
         statement = (
-            select(Submission)
+            select(Submission, Task.name, TaskGroup.name)
+            .join(Task, Submission.task_id == Task.join_code)
+            .join(TaskGroup, Task.task_group_id == TaskGroup.id)
             .where(Submission.user_id == user_id)
             .order_by(desc(Submission.timestamp))
         )
         result = await self.session.execute(statement)
-        return result.scalars().all()
+        submissions = []
+        for sub, t_name, tg_name in result.all():
+            read_sub = SubmissionRead.model_validate(sub)
+            read_sub.task_name = t_name
+            read_sub.task_group_name = tg_name
+            submissions.append(read_sub)
+        return submissions
 
     async def get_task_submissions(self, task_id: str) -> list[Submission]:
         statement = (

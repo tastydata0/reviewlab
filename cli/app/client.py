@@ -51,7 +51,7 @@ class Client:
             response = requests.post(
                 f"{BASE_URL}/submissions/",
                 headers=self._get_headers(),
-                params={"task_id": join_code},
+                data={"task_id": join_code},
                 files=files_to_send,
             )
         finally:

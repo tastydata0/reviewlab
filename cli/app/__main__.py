@@ -98,15 +98,24 @@ def view(
 
         table = Table(title="Мои отправки")
         table.add_column("ID", style="dim")
+        table.add_column("Лаба", style="magenta")
         table.add_column("Задача", style="cyan")
         table.add_column("Статус", style="bold")
         table.add_column("Оценка", justify="right")
         table.add_column("Дата", style="blue")
 
+        status_map = {
+            "CREATED": "Создано",
+            "PROCESSING": "В обработке",
+            "PROCESSED": "Оценено",
+            "FAILED": "Ошибка",
+        }
+
         for s in submissions:
-            status = s.get("status", "UNKNOWN")
-            status_color = "green" if status == "PROCESSED" else "yellow"
-            if status == "FAILED":
+            raw_status = s.get("status", "UNKNOWN")
+            status_text = status_map.get(raw_status, raw_status)
+            status_color = "green" if raw_status == "PROCESSED" else "yellow"
+            if raw_status == "FAILED":
                 status_color = "red"
 
             score = s.get("ai_score")
@@ -114,8 +123,9 @@ def view(
 
             table.add_row(
                 str(s["id"])[:8],
-                s["task_id"],
-                f"[{status_color}]{status}[/{status_color}]",
+                s.get("task_group_name", "N/A"),
+                s.get("task_name", s["task_id"]),
+                f"[{status_color}]{status_text}[/{status_color}]",
                 score_str,
                 s["timestamp"][:19].replace("T", " "),
             )
