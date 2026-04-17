@@ -1,5 +1,4 @@
 import typer
-import uuid
 import os
 from typing import List, Optional
 from rich.console import Console
@@ -100,6 +99,7 @@ def view(
         table.add_column("ID", style="dim")
         table.add_column("Лаба", style="magenta")
         table.add_column("Задача", style="cyan")
+        table.add_column("Код задачи", style="black")
         table.add_column("Статус", style="bold")
         table.add_column("Оценка", justify="right")
         table.add_column("Дата", style="blue")
@@ -125,6 +125,7 @@ def view(
                 str(s["id"])[:8],
                 s.get("task_group_name", "N/A"),
                 s.get("task_name", s["task_id"]),
+                s["task_id"],
                 f"[{status_color}]{status_text}[/{status_color}]",
                 score_str,
                 s["timestamp"][:19].replace("T", " "),

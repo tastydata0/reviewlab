@@ -58,7 +58,7 @@ class Client:
             for f in opened_files:
                 f.close()
 
-        if response.status_code == 200:
+        if response.status_code // 100 == 2:
             return response.json()
         else:
             raise Exception(

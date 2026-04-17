@@ -18,7 +18,7 @@ class PlagiarismVerdict(str, Enum):
     CONFIRMED = "CONFIRMED"
 
 
-class Submission(SQLModel, table=True):
+class SubmissionBase(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
     task_id: str = Field(index=True)  # JOIN_CODE
@@ -42,6 +42,10 @@ class Submission(SQLModel, table=True):
     plagiarism_verdict: PlagiarismVerdict = Field(default=PlagiarismVerdict.UNSET)
 
 
-class SubmissionRead(Submission):
+class Submission(SubmissionBase, table=True):
+    pass
+
+
+class SubmissionRead(SubmissionBase):
     task_name: Optional[str] = None
     task_group_name: Optional[str] = None
