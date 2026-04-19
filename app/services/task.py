@@ -6,7 +6,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import HTTPException, status
 
 from app.models.task_group import TaskGroup
-from app.models.task import Task
+from app.models.task import Task, TaskRead
+from app.models.course import Course
+from app.models.links import CourseUserLink
+from app.models.user import UserRole
 
 
 class TaskService:
@@ -92,3 +95,38 @@ class TaskService:
         await self.session.commit()
         await self.session.refresh(task)
         return task
+
+    async def get_available_tasks(
+        self, user_id: uuid.UUID, role: UserRole
+    ) -> list[TaskRead]:
+        if role in (UserRole.teacher, UserRole.admin):
+            # Tasks from courses where user is teacher
+            statement = (
+                select(Task, TaskGroup.name, Course.name)
+                .join(TaskGroup, Task.task_group_id == TaskGroup.id)
+                .join(Course, TaskGroup.course_id == Course.id)
+                .where(Course.teacher_id == user_id)
+            )
+        else:
+            # Tasks from courses where student is enrolled
+            statement = (
+                select(Task, TaskGroup.name, Course.name)
+                .join(TaskGroup, Task.task_group_id == TaskGroup.id)
+                .join(Course, TaskGroup.course_id == Course.id)
+                .join(CourseUserLink, Course.id == CourseUserLink.course_id)
+                .where(CourseUserLink.user_id == user_id)
+            )
+
+        result = await self.session.execute(statement)
+        tasks = []
+        for task, tg_name, c_name in result.all():
+            tasks.append(
+                TaskRead(
+                    id=task.id,
+                    name=task.name,
+                    join_code=task.join_code,
+                    task_group_name=tg_name,
+                    course_name=c_name,
+                )
+            )
+        return tasks

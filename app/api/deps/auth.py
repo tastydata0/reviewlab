@@ -22,6 +22,12 @@ async def get_current_user_id(
     return uuid.UUID(payload["sub"])
 
 
+async def get_current_user_role(
+    payload: dict[str, Any] = Depends(get_current_user_payload),
+) -> UserRole:
+    return UserRole(payload["role"])
+
+
 class RequireRoles:
     """
     @router.get("/admin-only", dependencies=[Depends(RequireRoles([UserRole.admin]))])

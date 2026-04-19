@@ -78,3 +78,15 @@ class Client:
             raise Exception(
                 f"Failed to fetch submissions ({response.status_code}): {response.text}"
             )
+
+    def get_tasks(self) -> List[Dict[str, Any]]:
+        if not self.token:
+            raise Exception("Пожалуйста, сначала авторизуйтесь.")
+
+        response = requests.get(f"{BASE_URL}/tasks/", headers=self._get_headers())
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(
+                f"Не удалось получить список задач ({response.status_code}): {response.text}"
+            )
