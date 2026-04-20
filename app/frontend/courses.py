@@ -84,6 +84,90 @@ async def post_create_course(session, name: str, description: str = ""):
         return RedirectResponse("/courses", status_code=303)
 
 
+def render_modal(title: str, content, modal_id: str):
+    return Dialog(
+        Article(
+            A(
+                href="#",
+                aria_label="Закрыть",
+                _class="close",
+                onclick="this.closest('dialog').remove()",
+                style="margin-top: 0;",
+            ),
+            H3(title),
+            content,
+        ),
+        open=True,
+        id=modal_id,
+    )
+
+
+@rt("/courses/{course_id}/labs/modal", methods=["GET"])
+async def get_create_lab_modal(session, course_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    form_content = Form(
+        Input(
+            name="name",
+            placeholder="Название лабы (например, ЛР №1)",
+            required=True,
+        ),
+        Input(name="description", placeholder="Описание"),
+        Button("Создать"),
+        method="post",
+        action=f"/courses/{course_id}/labs",
+    )
+    return render_modal("Создать лабораторную работу", form_content, "create-lab-modal")
+
+
+@rt("/courses/{course_id}/edit/modal", methods=["GET"])
+async def get_edit_course_modal(session, course_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    cid = uuid.UUID(course_id)
+    async with async_session_maker() as db_session:
+        course = await CourseService(db_session).get_course(cid)
+        form_content = Form(
+            Label(
+                "Название курса", Input(name="name", value=course.name, required=True)
+            ),
+            Label(
+                "Описание",
+                Textarea(course.description or "", name="description", rows="5"),
+            ),
+            Button("Сохранить"),
+            method="post",
+            action=f"/courses/{course_id}/edit",
+        )
+        return render_modal("Редактировать курс", form_content, "edit-course-modal")
+
+
+@rt("/courses/{course_id}/add-user/modal", methods=["GET"])
+async def get_add_user_modal(session, course_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    form_content = Form(
+        Input(name="email", placeholder="Email студента", required=True, type="email"),
+        Button("Добавить"),
+        method="post",
+        action=f"/courses/{course_id}/add-user",
+    )
+    return render_modal("Добавить студента", form_content, "add-user-modal")
+
+
+@rt("/courses/{course_id}/add-group/modal", methods=["GET"])
+async def get_add_group_modal(session, course_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    async with async_session_maker() as db_session:
+        groups_result = await db_session.execute(select(StudyGroup))
+        groups = groups_result.scalars().all()
+        group_options = [Option(g.name, value=str(g.id)) for g in groups]
+        form_content = Form(
+            Select(*group_options, name="group_id", required=True),
+            Button("Добавить группу"),
+            method="post",
+            action=f"/courses/{course_id}/add-group",
+        )
+        return render_modal("Добавить учебную группу", form_content, "add-group-modal")
+
+
 @rt("/courses/{course_id}", methods=["GET"])
 async def get_course_detail(session, course_id: str):
     require_roles(
@@ -110,10 +194,34 @@ async def get_course_detail(session, course_id: str):
                     A("Назад", href="/courses"),
                 )
 
+        # Заголовок с кнопкой редактирования курса
+        course_title_elements = [f"Курс: {course.name}"]
+        if role in (UserRole.teacher.value, UserRole.admin.value):
+            course_title_elements.append(
+                A(
+                    "✏️",
+                    hx_get=f"/courses/{cid}/edit/modal",
+                    hx_target="#modal-container",
+                    style="text-decoration: none; cursor: pointer; font-size: 0.6em; margin-left: 8px;",
+                )
+            )
+
+        # Секция лабораторных работ с кнопкой добавления
+        lab_header_elements = ["Лабораторные работы"]
+        if role in (UserRole.teacher.value, UserRole.admin.value):
+            lab_header_elements.append(
+                A(
+                    "➕",
+                    hx_get=f"/courses/{cid}/labs/modal",
+                    hx_target="#modal-container",
+                    style="text-decoration: none; cursor: pointer; font-size: 0.8em; margin-left: 8px;",
+                )
+            )
+
         content = [
             P(f"Описание: {course.description or 'Нет описания'}"),
             Hr(),
-            H3("Лабораторные работы"),
+            H3(*lab_header_elements),
         ]
 
         if not task_groups:
@@ -128,21 +236,6 @@ async def get_course_detail(session, course_id: str):
         if role in (UserRole.teacher.value, UserRole.admin.value):
             content.extend(
                 [
-                    Hr(),
-                    H3("Создать лабораторную работу"),
-                    Form(
-                        Input(
-                            name="name",
-                            placeholder="Название лабы (например, ЛР №1)",
-                            required=True,
-                        ),
-                        Input(name="description", placeholder="Описание"),
-                        Button("Создать"),
-                        method="post",
-                        action=f"/courses/{cid}/labs",
-                    ),
-                    Hr(),
-                    A("Редактировать курс", href=f"/courses/{cid}/edit"),
                     Hr(),
                     H3("Участники курса"),
                 ]
@@ -172,29 +265,23 @@ async def get_course_detail(session, course_id: str):
                 )
             )
 
-            groups_result = await db_session.execute(select(StudyGroup))
-            groups = groups_result.scalars().all()
-            group_options = [Option(g.name, value=str(g.id)) for g in groups]
-
             content.extend(
                 [
-                    Hr(),
-                    H4("Добавить студента (по email)"),
-                    Form(
-                        Input(
-                            name="email", placeholder="Email студента", required=True
+                    Div(
+                        Button(
+                            "Добавить студента",
+                            hx_get=f"/courses/{cid}/add-user/modal",
+                            hx_target="#modal-container",
+                            _class="outline",
                         ),
-                        Button("Добавить"),
-                        method="post",
-                        action=f"/courses/{cid}/add-user",
-                    ),
-                    Hr(),
-                    H4("Добавить учебную группу"),
-                    Form(
-                        Select(*group_options, name="group_id", required=True),
-                        Button("Добавить группу"),
-                        method="post",
-                        action=f"/courses/{cid}/add-group",
+                        Button(
+                            "Добавить группу",
+                            hx_get=f"/courses/{cid}/add-group/modal",
+                            hx_target="#modal-container",
+                            _class="outline",
+                            style="margin-left: 10px;",
+                        ),
+                        style="margin-top: 20px;",
                     ),
                 ]
             )
@@ -207,7 +294,10 @@ async def get_course_detail(session, course_id: str):
         content.append(Hr())
         content.append(A("Назад к списку курсов", href="/courses"))
 
-        return Titled(f"Курс: {course.name}", Div(*content))
+        # Modal target
+        content.append(Div(id="modal-container"))
+
+        return Titled(Span(*course_title_elements), Div(*content))
 
 
 def render_task_item(t, cid, lid, role, best_score: Optional[float] = None):

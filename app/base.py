@@ -29,8 +29,10 @@ app, rt = fast_app(
             .submission-info { flex: 1; }
             .submission-code { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 8px; overflow: auto; padding: 10px; min-width: 300px; font-family: monospace; white-space: pre-wrap; font-size: 0.9em; }
             .badge { padding: 5px 15px; border-radius: 10px; font-weight: bold; border: 2px solid; text-decoration: none; display: inline-block; margin-right: 10px; }
-            .badge-plagiarism { border-color: #dc3545; color: #dc3545; }
+            .badge-plagiarism { border-color: #dc3545; color: #dc3545; color: #dc3545; }
             .badge-not-plagiarism { border-color: #28a745; color: #28a745; }
+            .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background-color: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; text-decoration: none; border: none; }
+            .fab:hover { background-color: #0056b3; color: white; }
             """
         ),
     ),
