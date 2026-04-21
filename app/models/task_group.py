@@ -11,6 +11,7 @@ class TaskGroup(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     course_id: uuid.UUID = Field(foreign_key="course.id", index=True)
     name: str
+    emoji: Optional[str] = Field(default=None)
     description: Optional[str] = None
     settings: dict = Field(default_factory=dict, sa_column=Column(JSON))
 

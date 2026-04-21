@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 class Course(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(index=True)
+    emoji: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
     teacher_id: uuid.UUID = Field(foreign_key="user.id")
 

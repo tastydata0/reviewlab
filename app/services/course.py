@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from app.models.course import Course
 from app.models.user import User
 from app.models.links import CourseUserLink
+from app.utils.emojis import get_random_course_emoji
 
 
 class CourseService:
@@ -14,9 +15,17 @@ class CourseService:
         self.session = session
 
     async def create_course(
-        self, name: str, teacher_id: uuid.UUID, description: Optional[str] = None
+        self,
+        name: str,
+        teacher_id: uuid.UUID,
+        description: Optional[str] = None,
+        emoji: Optional[str] = None,
     ) -> Course:
-        course = Course(name=name, teacher_id=teacher_id, description=description)
+        if not emoji:
+            emoji = get_random_course_emoji()
+        course = Course(
+            name=name, teacher_id=teacher_id, description=description, emoji=emoji
+        )
         self.session.add(course)
         await self.session.commit()
         await self.session.refresh(course)

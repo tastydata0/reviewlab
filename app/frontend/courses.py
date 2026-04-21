@@ -42,6 +42,7 @@ async def get_courses_list(session):
 
         course_items = [
             Li(
+                f"{c.emoji} " if c.emoji else "",
                 A(f"{c.name}", href=f"/courses/{c.id}"),
                 f" - {c.description[:50] if c.description else ''}",
             )
@@ -195,7 +196,11 @@ async def get_course_detail(session, course_id: str):
                 )
 
         # Заголовок с кнопкой редактирования курса
-        course_title_elements = [f"Курс: {course.name}"]
+        course_title_elements = []
+        if course.emoji:
+            course_title_elements.append(Span(f"{course.emoji} "))
+        course_title_elements.append(Span(f"Курс: {course.name}"))
+
         if role in (UserRole.teacher.value, UserRole.admin.value):
             course_title_elements.append(
                 A(
@@ -207,7 +212,7 @@ async def get_course_detail(session, course_id: str):
             )
 
         # Секция лабораторных работ с кнопкой добавления
-        lab_header_elements = ["Лабораторные работы"]
+        lab_header_elements = [Span("Лабораторные работы")]
         if role in (UserRole.teacher.value, UserRole.admin.value):
             lab_header_elements.append(
                 A(
@@ -228,7 +233,10 @@ async def get_course_detail(session, course_id: str):
             content.append(P("Лабораторных работ пока нет."))
         else:
             lab_links = [
-                Li(A(tg.name, href=f"/courses/{cid}/labs/{tg.id}"))
+                Li(
+                    f"{tg.emoji} " if tg.emoji else "",
+                    A(tg.name, href=f"/courses/{cid}/labs/{tg.id}"),
+                )
                 for tg in task_groups
             ]
             content.append(Ul(*lab_links))
@@ -644,7 +652,12 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
         content.append(Hr())
         content.append(A("Назад к курсу", href=f"/courses/{cid}"))
 
-        return Titled(f"Лабораторная работа: {lab.name}", Div(*content))
+        return Titled(
+            f"{lab.emoji} Лабораторная работа: {lab.name}"
+            if lab.emoji
+            else f"Лабораторная работа: {lab.name}",
+            Div(*content),
+        )
 
 
 @rt("/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/submit", methods=["POST"])

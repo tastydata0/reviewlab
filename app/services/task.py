@@ -10,6 +10,7 @@ from app.models.task import Task, TaskRead
 from app.models.course import Course
 from app.models.links import CourseUserLink
 from app.models.user import UserRole
+from app.utils.emojis import get_random_lab_emoji
 
 
 class TaskService:
@@ -17,9 +18,17 @@ class TaskService:
         self.session = session
 
     async def create_task_group(
-        self, course_id: uuid.UUID, name: str, description: Optional[str] = None
+        self,
+        course_id: uuid.UUID,
+        name: str,
+        description: Optional[str] = None,
+        emoji: Optional[str] = None,
     ) -> TaskGroup:
-        group = TaskGroup(course_id=course_id, name=name, description=description)
+        if not emoji:
+            emoji = get_random_lab_emoji()
+        group = TaskGroup(
+            course_id=course_id, name=name, description=description, emoji=emoji
+        )
         self.session.add(group)
         await self.session.commit()
         await self.session.refresh(group)
