@@ -11,11 +11,38 @@ from app.services.course import CourseService
 from app.services.task import TaskService
 from app.services.submission import SubmissionService
 from app.services.user import UserService
+from app.utils.emojis import get_colors_for_emoji
 from app.api.deps.mq import get_mq_service
 from app.storage.postgres import async_session_maker
 from app.models.user import UserRole, User
 from app.models.group import StudyGroup
 from app.frontend.deps.auth import require_roles
+
+
+def render_card(title, emoji, href, description=None):
+    colors = get_colors_for_emoji(emoji)
+    gradient = f"linear-gradient(135deg, {colors[0]} 0%, {colors[1]} 100%)"
+    return A(
+        Div(
+            emoji,
+            _class="custom-card-top",
+            style=f"background: {gradient};",
+        ),
+        Div(
+            Div(title, _class="custom-card-title"),
+            Div(
+                (
+                    description[:100] + "..."
+                    if description and len(description) > 100
+                    else (description or "")
+                ),
+                _class="custom-card-desc",
+            ),
+            _class="custom-card-body",
+        ),
+        href=href,
+        _class="custom-card",
+    )
 
 
 @rt("/courses", methods=["GET"])
@@ -40,18 +67,18 @@ async def get_courses_list(session):
             user = result.scalars().first()
             courses = user.courses if user else []
 
-        course_items = [
-            Li(
-                f"{c.emoji} " if c.emoji else "",
-                A(f"{c.name}", href=f"/courses/{c.id}"),
-                f" - {c.description[:50] if c.description else ''}",
-            )
+        course_cards = [
+            render_card(c.name, c.emoji or "📚", f"/courses/{c.id}", c.description)
             for c in courses
         ]
 
         content = [
             Titled("Мои курсы"),
-            Ul(*course_items) if course_items else P("Курсов пока нет."),
+            (
+                Div(*course_cards, _class="card-grid")
+                if course_cards
+                else P("Курсов пока нет.")
+            ),
         ]
 
         if role in (UserRole.teacher.value, UserRole.admin.value):
@@ -232,14 +259,16 @@ async def get_course_detail(session, course_id: str):
         if not task_groups:
             content.append(P("Лабораторных работ пока нет."))
         else:
-            lab_links = [
-                Li(
-                    f"{tg.emoji} " if tg.emoji else "",
-                    A(tg.name, href=f"/courses/{cid}/labs/{tg.id}"),
+            lab_cards = [
+                render_card(
+                    tg.name,
+                    tg.emoji or "🧪",
+                    f"/courses/{cid}/labs/{tg.id}",
+                    tg.description,
                 )
                 for tg in task_groups
             ]
-            content.append(Ul(*lab_links))
+            content.append(Div(*lab_cards, _class="card-grid"))
 
         if role in (UserRole.teacher.value, UserRole.admin.value):
             content.extend(
@@ -653,9 +682,11 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
         content.append(A("Назад к курсу", href=f"/courses/{cid}"))
 
         return Titled(
-            f"{lab.emoji} Лабораторная работа: {lab.name}"
-            if lab.emoji
-            else f"Лабораторная работа: {lab.name}",
+            (
+                f"{lab.emoji} Лабораторная работа: {lab.name}"
+                if lab.emoji
+                else f"Лабораторная работа: {lab.name}"
+            ),
             Div(*content),
         )
 

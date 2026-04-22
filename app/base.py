@@ -33,6 +33,21 @@ app, rt = fast_app(
             .badge-not-plagiarism { border-color: #28a745; color: #28a745; }
             .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background-color: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; text-decoration: none; border: none; }
             .fab:hover { background-color: #0056b3; color: white; }
+            
+            .card-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
+            .custom-card { 
+                width: 300px; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; 
+                transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; text-decoration: none; color: inherit;
+                display: flex; flex-direction: column; background: white;
+            }
+            .custom-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); color: inherit; border-color: #007bff; }
+            .custom-card-top { 
+                height: 100px; background-color: #f0f2f5; display: flex; align-items: center; 
+                justify-content: flex-start; font-size: 50px; border-bottom: 1px solid #eee; padding-left: 20px;
+            }
+            .custom-card-body { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+            .custom-card-title { font-weight: bold; font-size: 1.1em; margin-bottom: 5px; color: #2c3e50; }
+            .custom-card-desc { font-size: 0.9em; color: #7f8c8d; line-height: 1.4; }
             """
         ),
     ),
