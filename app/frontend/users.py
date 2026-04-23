@@ -9,6 +9,7 @@ from app.services.auth import AuthService
 from app.storage.postgres import async_session_maker
 from app.models.user import UserRole
 from app.frontend.deps.auth import require_roles
+from app.frontend.shared import render_header
 
 
 @rt("/register", methods=["GET"])
@@ -111,36 +112,41 @@ async def get_me(session):
                 group = await user_service.get_study_group(user.group_id)
                 group_name = group.name if group else "Неизвестная группа"
 
-            return Titled(
-                "Профиль",
-                Div(
-                    P(f"Имя: {user.full_name}"),
-                    P(f"Email: {user.email}"),
-                    P(f"Роль: {user.role.value}"),
-                    P(f"Группа: {group_name}"),
-                    Hr(),
-                    H3("Изменить данные"),
-                    Form(
-                        Input(name="full_name", value=user.full_name),
-                        Input(name="email", value=user.email),
-                        Button("Сохранить"),
-                        method="post",
-                        action="/me",
+            header = await render_header(session, breadcrumbs=[("Профиль", "/me")])
+            return (
+                Title("Профиль"),
+                header,
+                Main(
+                    Div(
+                        P(f"Имя: {user.full_name}"),
+                        P(f"Email: {user.email}"),
+                        P(f"Роль: {user.role.value}"),
+                        P(f"Группа: {group_name}"),
+                        Hr(),
+                        H3("Изменить данные"),
+                        Form(
+                            Input(name="full_name", value=user.full_name),
+                            Input(name="email", value=user.email),
+                            Button("Сохранить", _class="btn-custom btn-primary"),
+                            method="post",
+                            action="/me",
+                        ),
+                        Hr(),
+                        (
+                            A("Управление группами", href="/groups")
+                            if user.role in (UserRole.teacher, UserRole.admin)
+                            else ""
+                        ),
+                        Br(),
+                        (
+                            A("Управление курсами", href="/courses")
+                            if user.role in (UserRole.teacher, UserRole.admin)
+                            else ""
+                        ),
+                        Br(),
+                        A("Выйти", href="/logout"),
                     ),
-                    Hr(),
-                    (
-                        A("Управление группами", href="/groups")
-                        if user.role in (UserRole.teacher, UserRole.admin)
-                        else ""
-                    ),
-                    Br(),
-                    (
-                        A("Управление курсами", href="/courses")
-                        if user.role in (UserRole.teacher, UserRole.admin)
-                        else ""
-                    ),
-                    Br(),
-                    A("Выйти", href="/logout"),
+                    _class="container",
                 ),
             )
         except HTTPException:
@@ -171,22 +177,39 @@ async def get_groups(session):
     async with async_session_maker() as db_session:
         user_service = UserService(db_session)
         groups = await user_service.get_all_study_groups()
-        return Titled(
-            "Группы",
-            (
-                Ul(*[Li(A(f"{g.name}", href=f"/groups/{g.id}")) for g in groups])
-                if groups
-                else P("Групп пока нет.")
+        header = await render_header(
+            session, breadcrumbs=[("Администрирование", "/groups")]
+        )
+        return (
+            Title("Группы"),
+            header,
+            Main(
+                Div(
+                    H1("Группы"),
+                    (
+                        Ul(
+                            *[
+                                Li(A(f"{g.name}", href=f"/groups/{g.id}"))
+                                for g in groups
+                            ]
+                        )
+                        if groups
+                        else P("Групп пока нет.")
+                    ),
+                    Hr(),
+                    H3("Создать группу"),
+                    Form(
+                        Input(
+                            name="name", placeholder="Название группы", required=True
+                        ),
+                        Button("Создать", _class="btn-custom btn-primary"),
+                        method="post",
+                        action="/groups",
+                    ),
+                    A("Назад в профиль", href="/me"),
+                ),
+                _class="container",
             ),
-            Hr(),
-            H3("Создать группу"),
-            Form(
-                Input(name="name", placeholder="Название группы", required=True),
-                Button("Создать"),
-                method="post",
-                action="/groups",
-            ),
-            A("Назад в профиль", href="/me"),
         )
 
 
@@ -221,31 +244,49 @@ async def get_group_detail(session, group_id: str):
                         hx_post=f"/groups/{gid}/remove/{u.id}",
                         hx_target="closest tr",
                         hx_swap="outerHTML",
+                        _class="btn-custom btn-danger",
                     )
                 ),
             )
             for u in users
         ]
 
-        return Titled(
-            f"Группа: {group.name}",
-            Div(
-                H3("Участники"),
-                Table(
-                    Thead(Tr(Th("Имя"), Th("Email"), Th("Действие"))),
-                    Tbody(*user_rows),
-                    border="1",
+        header = await render_header(
+            session,
+            breadcrumbs=[
+                ("Администрирование", "/groups"),
+                (group.name, f"/groups/{gid}"),
+            ],
+        )
+        return (
+            Title(f"Группа: {group.name}"),
+            header,
+            Main(
+                Div(
+                    H1(f"Группа: {group.name}"),
+                    H3("Участники"),
+                    Div(
+                        Table(
+                            Thead(Tr(Th("Имя"), Th("Email"), Th("Действие"))),
+                            Tbody(*user_rows),
+                            _class="custom-table",
+                        ),
+                        _class="custom-table-container",
+                    ),
+                    Hr(),
+                    H4("Пригласить студента (по email)"),
+                    Form(
+                        Input(
+                            name="email", placeholder="Email студента", required=True
+                        ),
+                        Button("Пригласить", _class="btn-custom btn-primary"),
+                        method="post",
+                        action=f"/groups/{gid}/invite",
+                    ),
+                    Hr(),
+                    A("Назад к списку групп", href="/groups"),
                 ),
-                Hr(),
-                H4("Пригласить студента (по email)"),
-                Form(
-                    Input(name="email", placeholder="Email студента", required=True),
-                    Button("Пригласить"),
-                    method="post",
-                    action=f"/groups/{gid}/invite",
-                ),
-                Hr(),
-                A("Назад к списку групп", href="/groups"),
+                _class="container",
             ),
         )
 

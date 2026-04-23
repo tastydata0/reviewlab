@@ -17,6 +17,7 @@ from app.storage.postgres import async_session_maker
 from app.models.user import UserRole, User
 from app.models.group import StudyGroup
 from app.frontend.deps.auth import require_roles
+from app.frontend.shared import render_header
 
 
 def render_card(title, emoji, href, description=None):
@@ -43,6 +44,29 @@ def render_card(title, emoji, href, description=None):
         href=href,
         _class="custom-card",
     )
+
+
+def render_add_card(href, target="#modal-container"):
+    return A(
+        "+",
+        hx_get=href,
+        hx_target=target,
+        _class="custom-card-add",
+        style="text-decoration: none;",
+    )
+
+
+@rt("/courses/modal", methods=["GET"])
+async def get_create_course_modal(session):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    form_content = Form(
+        Input(name="name", placeholder="Название курса", required=True),
+        Input(name="description", placeholder="Описание"),
+        Button("Создать", _class="btn-custom btn-primary"),
+        method="post",
+        action="/courses",
+    )
+    return render_modal("Создать новый курс", form_content, "create-course-modal")
 
 
 @rt("/courses", methods=["GET"])
@@ -72,8 +96,11 @@ async def get_courses_list(session):
             for c in courses
         ]
 
+        if role in (UserRole.teacher.value, UserRole.admin.value):
+            course_cards.append(render_add_card("/courses/modal"))
+
         content = [
-            Titled("Мои курсы"),
+            H1("Мои курсы", style="text-align: center;"),
             (
                 Div(*course_cards, _class="card-grid")
                 if course_cards
@@ -81,24 +108,12 @@ async def get_courses_list(session):
             ),
         ]
 
-        if role in (UserRole.teacher.value, UserRole.admin.value):
-            content.extend(
-                [
-                    Hr(),
-                    H3("Создать новый курс"),
-                    Form(
-                        Input(name="name", placeholder="Название курса", required=True),
-                        Input(name="description", placeholder="Описание"),
-                        Button("Создать"),
-                        method="post",
-                        action="/courses",
-                    ),
-                ]
-            )
-
         content.append(Hr())
         content.append(A("Назад в профиль", href="/me"))
-        return content
+        content.append(Div(id="modal-container"))
+
+        header = await render_header(session, [("Мои курсы", "/courses")])
+        return Title("Мои курсы"), header, Main(*content, _class="container")
 
 
 @rt("/courses", methods=["POST"])
@@ -140,7 +155,7 @@ async def get_create_lab_modal(session, course_id: str):
             required=True,
         ),
         Input(name="description", placeholder="Описание"),
-        Button("Создать"),
+        Button("Создать", _class="btn-custom btn-primary"),
         method="post",
         action=f"/courses/{course_id}/labs",
     )
@@ -161,7 +176,7 @@ async def get_edit_course_modal(session, course_id: str):
                 "Описание",
                 Textarea(course.description or "", name="description", rows="5"),
             ),
-            Button("Сохранить"),
+            Button("Сохранить", _class="btn-custom btn-primary"),
             method="post",
             action=f"/courses/{course_id}/edit",
         )
@@ -173,7 +188,7 @@ async def get_add_user_modal(session, course_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     form_content = Form(
         Input(name="email", placeholder="Email студента", required=True, type="email"),
-        Button("Добавить"),
+        Button("Добавить", _class="btn-custom btn-primary"),
         method="post",
         action=f"/courses/{course_id}/add-user",
     )
@@ -189,7 +204,7 @@ async def get_add_group_modal(session, course_id: str):
         group_options = [Option(g.name, value=str(g.id)) for g in groups]
         form_content = Form(
             Select(*group_options, name="group_id", required=True),
-            Button("Добавить группу"),
+            Button("Добавить группу", _class="btn-custom btn-primary"),
             method="post",
             action=f"/courses/{course_id}/add-group",
         )
@@ -240,15 +255,6 @@ async def get_course_detail(session, course_id: str):
 
         # Секция лабораторных работ с кнопкой добавления
         lab_header_elements = [Span("Лабораторные работы")]
-        if role in (UserRole.teacher.value, UserRole.admin.value):
-            lab_header_elements.append(
-                A(
-                    "➕",
-                    hx_get=f"/courses/{cid}/labs/modal",
-                    hx_target="#modal-container",
-                    style="text-decoration: none; cursor: pointer; font-size: 0.8em; margin-left: 8px;",
-                )
-            )
 
         content = [
             P(f"Описание: {course.description or 'Нет описания'}"),
@@ -257,7 +263,15 @@ async def get_course_detail(session, course_id: str):
         ]
 
         if not task_groups:
-            content.append(P("Лабораторных работ пока нет."))
+            if role in (UserRole.teacher.value, UserRole.admin.value):
+                content.append(
+                    Div(
+                        render_add_card(f"/courses/{cid}/labs/modal"),
+                        _class="card-grid",
+                    )
+                )
+            else:
+                content.append(P("Лабораторных работ пока нет."))
         else:
             lab_cards = [
                 render_card(
@@ -268,6 +282,8 @@ async def get_course_detail(session, course_id: str):
                 )
                 for tg in task_groups
             ]
+            if role in (UserRole.teacher.value, UserRole.admin.value):
+                lab_cards.append(render_add_card(f"/courses/{cid}/labs/modal"))
             content.append(Div(*lab_cards, _class="card-grid"))
 
         if role in (UserRole.teacher.value, UserRole.admin.value):
@@ -288,6 +304,7 @@ async def get_course_detail(session, course_id: str):
                             hx_post=f"/courses/{cid}/remove-user/{u.id}",
                             hx_target="closest tr",
                             hx_swap="outerHTML",
+                            _class="btn-custom btn-danger",
                         )
                     ),
                 )
@@ -295,10 +312,13 @@ async def get_course_detail(session, course_id: str):
             ]
 
             content.append(
-                Table(
-                    Thead(Tr(Th("Имя"), Th("Email"), Th("Действие"))),
-                    Tbody(*user_rows),
-                    border="1",
+                Div(
+                    Table(
+                        Thead(Tr(Th("Имя"), Th("Email"), Th("Действие"))),
+                        Tbody(*user_rows),
+                        _class="custom-table",
+                    ),
+                    _class="custom-table-container",
                 )
             )
 
@@ -309,13 +329,13 @@ async def get_course_detail(session, course_id: str):
                             "Добавить студента",
                             hx_get=f"/courses/{cid}/add-user/modal",
                             hx_target="#modal-container",
-                            _class="outline",
+                            _class="btn-custom btn-primary",
                         ),
                         Button(
                             "Добавить группу",
                             hx_get=f"/courses/{cid}/add-group/modal",
                             hx_target="#modal-container",
-                            _class="outline",
+                            _class="btn-custom btn-primary",
                             style="margin-left: 10px;",
                         ),
                         style="margin-top: 20px;",
@@ -334,7 +354,18 @@ async def get_course_detail(session, course_id: str):
         # Modal target
         content.append(Div(id="modal-container"))
 
-        return Titled(Span(*course_title_elements), Div(*content))
+        header = await render_header(
+            session,
+            breadcrumbs=[
+                ("Мои курсы", "/courses"),
+                (course.name_with_emoji, f"/courses/{cid}"),
+            ],
+        )
+        return (
+            Title(f"Курс: {course.name}"),
+            header,
+            Main(H1(Span(*course_title_elements)), Div(*content), _class="container"),
+        )
 
 
 def render_task_item(t, cid, lid, role, best_score: Optional[float] = None):
@@ -420,12 +451,13 @@ async def get_edit_task(session, course_id: str, lab_id: str, task_id: str):
                 ),
             ),
             Div(
-                Button("Сохранить"),
+                Button("Сохранить", _class="btn-custom btn-primary"),
                 A(
                     "Отмена",
                     hx_get=f"/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/cancel",
                     hx_target=f"#task-{task_id}",
                     hx_swap="outerHTML",
+                    _class="btn-custom btn-secondary",
                     style="margin-left: 10px; cursor: pointer;",
                 ),
                 style="margin-top: 10px;",
@@ -575,6 +607,8 @@ async def get_my_submissions_for_task(
     async with async_session_maker() as db_session:
         user = await UserService(db_session).get_user_by_id(user_id)
         task = await TaskService(db_session).get_task_by_join_code(task_id)
+        lab = await TaskService(db_session).get_task_group(uuid.UUID(lab_id))
+        course = await CourseService(db_session).get_course(uuid.UUID(course_id))
         submissions = await SubmissionService(db_session).get_user_submissions(user_id)
         # Filter for this specific task
         task_submissions = [s for s in submissions if s.task_id == task_id]
@@ -582,11 +616,32 @@ async def get_my_submissions_for_task(
 
         cards = [render_submission_card(s) for s in task_submissions]
 
-        return Titled(
-            f"{user.full_name} - {task.name}",
-            A("← Назад к задаче", href=f"/courses/{course_id}/labs/{lab_id}"),
-            Hr(),
-            Div(*cards) if cards else P("Вы еще не отправляли решений по этой задаче."),
+        header = await render_header(
+            session,
+            breadcrumbs=[
+                ("Мои курсы", "/courses"),
+                (course.name_with_emoji, f"/courses/{course_id}"),
+                (lab.name_with_emoji, f"/courses/{course_id}/labs/{lab_id}"),
+                (
+                    task.name,
+                    f"/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/my",
+                ),
+            ],
+        )
+
+        return (
+            Title(f"{user.full_name} - {task.name}"),
+            header,
+            Main(
+                H1(f"История моих попыток: {task.name}"),
+                Hr(),
+                (
+                    Div(*cards)
+                    if cards
+                    else P("Вы еще не отправляли решений по этой задаче.")
+                ),
+                _class="container",
+            ),
         )
 
 
@@ -681,13 +736,28 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
         content.append(Hr())
         content.append(A("Назад к курсу", href=f"/courses/{cid}"))
 
-        return Titled(
-            (
-                f"{lab.emoji} Лабораторная работа: {lab.name}"
-                if lab.emoji
-                else f"Лабораторная работа: {lab.name}"
+        course = await CourseService(db_session).get_course(cid)
+        header = await render_header(
+            session,
+            breadcrumbs=[
+                ("Мои курсы", "/courses"),
+                (course.name_with_emoji, f"/courses/{cid}"),
+                (lab.name_with_emoji, f"/courses/{cid}/labs/{lid}"),
+            ],
+        )
+
+        return (
+            Title(f"ЛР: {lab.name}"),
+            header,
+            Main(
+                H1(
+                    f"{lab.emoji} Лабораторная работа: {lab.name}"
+                    if lab.emoji
+                    else f"Лабораторная работа: {lab.name}"
+                ),
+                Div(*content),
+                _class="container",
             ),
-            Div(*content),
         )
 
 

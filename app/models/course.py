@@ -20,3 +20,7 @@ class Course(SQLModel, table=True):
         back_populates="courses", link_model=CourseUserLink
     )
     task_groups: list["TaskGroup"] = Relationship(back_populates="course")
+
+    @property
+    def name_with_emoji(self) -> str:
+        return f"{self.emoji} {self.name}"
