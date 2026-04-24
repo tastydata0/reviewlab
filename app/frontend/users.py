@@ -131,20 +131,6 @@ async def get_me(session):
                             method="post",
                             action="/me",
                         ),
-                        Hr(),
-                        (
-                            A("Управление группами", href="/groups")
-                            if user.role in (UserRole.teacher, UserRole.admin)
-                            else ""
-                        ),
-                        Br(),
-                        (
-                            A("Управление курсами", href="/courses")
-                            if user.role in (UserRole.teacher, UserRole.admin)
-                            else ""
-                        ),
-                        Br(),
-                        A("Выйти", href="/logout"),
                     ),
                     _class="container",
                 ),
@@ -206,7 +192,6 @@ async def get_groups(session):
                         method="post",
                         action="/groups",
                     ),
-                    A("Назад в профиль", href="/me"),
                 ),
                 _class="container",
             ),
@@ -283,8 +268,6 @@ async def get_group_detail(session, group_id: str):
                         method="post",
                         action=f"/groups/{gid}/invite",
                     ),
-                    Hr(),
-                    A("Назад к списку групп", href="/groups"),
                 ),
                 _class="container",
             ),

@@ -108,8 +108,6 @@ async def get_courses_list(session):
             ),
         ]
 
-        content.append(Hr())
-        content.append(A("Назад в профиль", href="/me"))
         content.append(Div(id="modal-container"))
 
         header = await render_header(session, [("Мои курсы", "/courses")])
@@ -347,9 +345,6 @@ async def get_course_detail(session, course_id: str):
             content.append(H3("Преподаватель"))
             teacher = await db_session.get(User, course.teacher_id)
             content.append(P(teacher.full_name if teacher else "Неизвестен"))
-
-        content.append(Hr())
-        content.append(A("Назад к списку курсов", href="/courses"))
 
         # Modal target
         content.append(Div(id="modal-container"))
@@ -732,9 +727,6 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
                     ),
                 ]
             )
-
-        content.append(Hr())
-        content.append(A("Назад к курсу", href=f"/courses/{cid}"))
 
         course = await CourseService(db_session).get_course(cid)
         header = await render_header(
