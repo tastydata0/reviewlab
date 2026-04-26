@@ -11,13 +11,20 @@ from app.services.course import CourseService
 from app.services.task import TaskService
 from app.services.submission import SubmissionService
 from app.services.user import UserService
-from app.utils.emojis import get_colors_for_emoji
+from app.utils.emojis import (
+    get_colors_for_emoji,
+    get_all_course_emojis,
+    get_all_lab_emojis,
+)
 from app.api.deps.mq import get_mq_service
 from app.storage.postgres import async_session_maker
 from app.models.user import UserRole, User
 from app.models.group import StudyGroup
 from app.frontend.deps.auth import require_roles
 from app.frontend.shared import render_header
+
+DEFAULT_COURSE_EMOJI = "🦄"
+DEFAULT_LAB_EMOJI = "🌱"
 
 
 def render_card(title, emoji, href, description=None):
@@ -56,12 +63,23 @@ def render_add_card(href, target="#modal-container"):
     )
 
 
+def render_emoji_select(
+    current_emoji: Optional[str], emoji_list: list[str], name: str = "emoji"
+):
+    options = [Option(e, value=e, selected=(e == current_emoji)) for e in emoji_list]
+    return Select(*options, name=name)
+
+
 @rt("/courses/modal", methods=["GET"])
 async def get_create_course_modal(session):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     form_content = Form(
-        Input(name="name", placeholder="Название курса", required=True),
-        Input(name="description", placeholder="Описание"),
+        Label(
+            "Название курса",
+            Input(name="name", placeholder="Название курса", required=True),
+        ),
+        Label("Эмоджи", render_emoji_select(None, get_all_course_emojis())),
+        Label("Описание", Input(name="description", placeholder="Описание")),
         Button("Создать", _class="btn-custom btn-primary"),
         method="post",
         action="/courses",
@@ -115,12 +133,14 @@ async def get_courses_list(session):
 
 
 @rt("/courses", methods=["POST"])
-async def post_create_course(session, name: str, description: str = ""):
+async def post_create_course(
+    session, name: str, description: str = "", emoji: Optional[str] = None
+):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     user_id = uuid.UUID(session["user_id"])
     async with async_session_maker() as db_session:
         await CourseService(db_session).create_course(
-            name=name, teacher_id=user_id, description=description
+            name=name, teacher_id=user_id, description=description, emoji=emoji
         )
         return RedirectResponse("/courses", status_code=303)
 
@@ -147,17 +167,62 @@ def render_modal(title: str, content, modal_id: str):
 async def get_create_lab_modal(session, course_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     form_content = Form(
-        Input(
-            name="name",
-            placeholder="Название лабы (например, ЛР №1)",
-            required=True,
+        Label(
+            "Название лабы (например, ЛР №1)",
+            Input(
+                name="name",
+                placeholder="Название лабы",
+                required=True,
+            ),
         ),
-        Input(name="description", placeholder="Описание"),
+        Label("Эмоджи", render_emoji_select(None, get_all_lab_emojis())),
+        Label("Описание", Input(name="description", placeholder="Описание")),
         Button("Создать", _class="btn-custom btn-primary"),
         method="post",
         action=f"/courses/{course_id}/labs",
     )
     return render_modal("Создать лабораторную работу", form_content, "create-lab-modal")
+
+
+@rt("/courses/{course_id}/labs/{lab_id}/edit/modal", methods=["GET"])
+async def get_edit_lab_modal(session, course_id: str, lab_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    lid = uuid.UUID(lab_id)
+    async with async_session_maker() as db_session:
+        lab = await TaskService(db_session).get_task_group(lid)
+        form_content = Form(
+            Label("Название ЛР", Input(name="name", value=lab.name, required=True)),
+            Label("Эмоджи", render_emoji_select(lab.emoji, get_all_lab_emojis())),
+            Label(
+                "Описание",
+                Textarea(lab.description or "", name="description", rows="5"),
+            ),
+            Button("Сохранить", _class="btn-custom btn-primary"),
+            method="post",
+            action=f"/courses/{course_id}/labs/{lab_id}/edit",
+        )
+        return render_modal(
+            "Редактировать лабораторную работу", form_content, "edit-lab-modal"
+        )
+
+
+@rt("/courses/{course_id}/labs/{lab_id}/edit", methods=["POST"])
+async def post_edit_lab(
+    session,
+    course_id: str,
+    lab_id: str,
+    name: str,
+    description: str,
+    emoji: Optional[str] = DEFAULT_LAB_EMOJI,
+):
+    emoji = emoji or DEFAULT_LAB_EMOJI
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    lid = uuid.UUID(lab_id)
+    async with async_session_maker() as db_session:
+        await TaskService(db_session).update_task_group(
+            lid, name=name, description=description, emoji=emoji
+        )
+        return RedirectResponse(f"/courses/{course_id}/labs/{lab_id}", status_code=303)
 
 
 @rt("/courses/{course_id}/edit/modal", methods=["GET"])
@@ -170,6 +235,7 @@ async def get_edit_course_modal(session, course_id: str):
             Label(
                 "Название курса", Input(name="name", value=course.name, required=True)
             ),
+            Label("Эмоджи", render_emoji_select(course.emoji, get_all_course_emojis())),
             Label(
                 "Описание",
                 Textarea(course.description or "", name="description", rows="5"),
@@ -635,6 +701,7 @@ async def get_my_submissions_for_task(
                     if cards
                     else P("Вы еще не отправляли решений по этой задаче.")
                 ),
+                Div(id="modal-container"),
                 _class="container",
             ),
         )
@@ -738,18 +805,28 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
             ],
         )
 
+        # Заголовок с кнопкой редактирования лабы
+        lab_title_elements = []
+        if lab.emoji:
+            lab_title_elements.append(Span(f"{lab.emoji} "))
+        lab_title_elements.append(Span(f"Лабораторная работа: {lab.name}"))
+
+        if role in (UserRole.teacher.value, UserRole.admin.value):
+            lab_title_elements.append(
+                A(
+                    "✏️",
+                    hx_get=f"/courses/{cid}/labs/{lid}/edit/modal",
+                    hx_target="#modal-container",
+                    style="text-decoration: none; cursor: pointer; font-size: 0.6em; margin-left: 8px;",
+                )
+            )
+
+        content.append(Div(id="modal-container"))
+
         return (
             Title(f"ЛР: {lab.name}"),
             header,
-            Main(
-                H1(
-                    f"{lab.emoji} Лабораторная работа: {lab.name}"
-                    if lab.emoji
-                    else f"Лабораторная работа: {lab.name}"
-                ),
-                Div(*content),
-                _class="container",
-            ),
+            Main(H1(Span(*lab_title_elements)), Div(*content), _class="container"),
         )
 
 
@@ -782,11 +859,19 @@ async def post_submit_task(
 
 
 @rt("/courses/{course_id}/labs", methods=["POST"])
-async def post_create_lab(session, course_id: str, name: str, description: str = ""):
+async def post_create_lab(
+    session,
+    course_id: str,
+    name: str,
+    description: str = "",
+    emoji: Optional[str] = None,
+):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     cid = uuid.UUID(course_id)
     async with async_session_maker() as db_session:
-        await TaskService(db_session).create_task_group(cid, name, description)
+        await TaskService(db_session).create_task_group(
+            cid, name, description, emoji=emoji
+        )
         return RedirectResponse(f"/courses/{cid}", status_code=303)
 
 
@@ -824,12 +909,19 @@ async def get_edit_course(session, course_id: str):
 
 
 @rt("/courses/{course_id}/edit", methods=["POST"])
-async def post_edit_course(session, course_id: str, name: str, description: str):
+async def post_edit_course(
+    session,
+    course_id: str,
+    name: str,
+    description: str,
+    emoji: Optional[str] = DEFAULT_COURSE_EMOJI,
+):
+    emoji = emoji or DEFAULT_COURSE_EMOJI
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     cid = uuid.UUID(course_id)
     async with async_session_maker() as db_session:
         await CourseService(db_session).update_course(
-            cid, name=name, description=description
+            cid, name=name, description=description, emoji=emoji
         )
         return RedirectResponse(f"/courses/{cid}", status_code=303)
 

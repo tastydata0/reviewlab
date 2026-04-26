@@ -158,3 +158,11 @@ def get_colors_for_emoji(emoji: str):
     if not colors:
         return ["#f0f2f555", "#e0e0e055"]
     return [colors[0] + "55", colors[1] + "55"]  # 55 в конце - прозрачность
+
+
+def get_all_course_emojis():
+    return list(COURSE_EMOJIS_DATA.keys())
+
+
+def get_all_lab_emojis():
+    return list(LAB_EMOJIS_DATA.keys())

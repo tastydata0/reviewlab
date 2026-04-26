@@ -55,6 +55,25 @@ class TaskService:
             )
         return group
 
+    async def update_task_group(
+        self,
+        group_id: uuid.UUID,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        emoji: Optional[str] = None,
+    ) -> TaskGroup:
+        group = await self.get_task_group(group_id)
+        if name:
+            group.name = name
+        if description:
+            group.description = description
+        if emoji:
+            group.emoji = emoji
+        self.session.add(group)
+        await self.session.commit()
+        await self.session.refresh(group)
+        return group
+
     async def create_task(
         self,
         task_group_id: uuid.UUID,

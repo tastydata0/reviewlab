@@ -131,10 +131,12 @@ async def get_me(session):
                             method="post",
                             action="/me",
                         ),
+                        Div(id="modal-container"),
                     ),
                     _class="container",
                 ),
             )
+
         except HTTPException:
             session.clear()
             return RedirectResponse("/login", status_code=303)
@@ -192,6 +194,7 @@ async def get_groups(session):
                         method="post",
                         action="/groups",
                     ),
+                    Div(id="modal-container"),
                 ),
                 _class="container",
             ),
@@ -268,6 +271,7 @@ async def get_group_detail(session, group_id: str):
                         method="post",
                         action=f"/groups/{gid}/invite",
                     ),
+                    Div(id="modal-container"),
                 ),
                 _class="container",
             ),

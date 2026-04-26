@@ -44,12 +44,15 @@ class CourseService:
         course_id: uuid.UUID,
         name: Optional[str] = None,
         description: Optional[str] = None,
+        emoji: Optional[str] = None,
     ) -> Course:
         course = await self.get_course(course_id)
         if name:
             course.name = name
         if description:
             course.description = description
+        if emoji:
+            course.emoji = emoji
         self.session.add(course)
         await self.session.commit()
         await self.session.refresh(course)
