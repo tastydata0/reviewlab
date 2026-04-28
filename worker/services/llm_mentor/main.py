@@ -14,6 +14,9 @@ class LLMMentorResponse(BaseModel):
     score: int = Field(
         description="A score from 0 to 100 representing the quality of the submission."
     )
+    correctness: int = Field(
+        description="A score from 0 to 100 representing how functionally correct the solution is based on task requirements."
+    )
 
 
 class LLMMentorService:
@@ -62,7 +65,7 @@ class LLMMentorService:
 
         prompt += (
             "Твоя задача: сравни решение с предыдущим (если оно есть), оцени прогресс, "
-            "оцени текущее решение от 0 до 100 и дай конструктивный фидбек."
+            "оцени общее качество решения (score) от 0 до 100, оцени функциональную правильность (correctness) от 0 до 100 и дай конструктивный фидбек."
         )
 
         try:

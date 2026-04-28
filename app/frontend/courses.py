@@ -581,6 +581,9 @@ def render_submission_card(s):
     score = s.ai_score or 0
     score_percent = min(100, score)
 
+    correctness = s.correctness or 0
+    correctness_percent = min(100, correctness)
+
     plag_prob = s.plagiarism_score * 100
 
     linter_lines = []
@@ -596,7 +599,6 @@ def render_submission_card(s):
             Div(
                 P(
                     B(f"Общая оценка - {score / 10.0 if score else 0.0}"),
-                    " ✏️",
                     style="color: #28a745; margin-bottom: 0;",
                 ),
                 Div(
@@ -607,8 +609,20 @@ def render_submission_card(s):
                     _class="progress-container",
                 ),
                 P(
+                    B(
+                        f"Функциональная правильность - {correctness / 10.0 if correctness else 0.0}"
+                    ),
+                    style="color: #28a745; margin-top: 10px; margin-bottom: 0;",
+                ),
+                Div(
+                    Div(
+                        style=f"width: {correctness_percent}%;",
+                        _class="progress-bar score-bar",
+                    ),
+                    _class="progress-container",
+                ),
+                P(
                     B("ИИ-рецензия"),
-                    " ✏️",
                     style="margin-top: 20px; margin-bottom: 5px;",
                 ),
                 P(

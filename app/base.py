@@ -24,6 +24,7 @@ app, rt = fast_app(
             .progress-container { width: 300px; height: 10px; background-color: #f3f3f3; border: 1px solid #ccc; border-radius: 5px; position: relative; overflow: hidden; margin-top: 5px; margin-bottom: 5px; }
             .progress-bar { height: 100%; transition: width 0.3s ease; }
             .score-bar { background-color: #28a745; }
+            .correctness-bar { background-color: #007bff; }
             .plagiarism-bar { background-color: #dc3545; }
             .submission-card { border: 1px solid #eee; padding: 20px; border-radius: 10px; margin-bottom: 30px; display: flex; gap: 40px; }
             .submission-info { flex: 1; }

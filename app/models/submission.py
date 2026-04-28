@@ -2,7 +2,7 @@ import uuid
 import datetime as dt
 from enum import Enum
 from typing import Optional
-from sqlmodel import SQLModel, Field, Column, JSON
+from sqlmodel import SQLModel, Field, JSON
 
 
 class SubmissionStatus(str, Enum):
@@ -18,6 +18,12 @@ class PlagiarismVerdict(str, Enum):
     CONFIRMED = "CONFIRMED"
 
 
+class CorrectnessSource(str, Enum):
+    MANUAL = "MANUAL"
+    AI = "AI"
+    EXTERNAL_TESTING_SYSTEM = "EXTERNAL_TESTING_SYSTEM"  # cf, acmp
+
+
 class SubmissionBase(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
@@ -27,6 +33,8 @@ class SubmissionBase(SQLModel):
         default_factory=dict, sa_type=JSON
     )  # filename -> content
     language: str = Field(default="python")
+    correctness: Optional[int] = Field(None, ge=0, le=100)
+    correctness_source: Optional[CorrectnessSource] = Field(default=None)
 
     status: SubmissionStatus = Field(default=SubmissionStatus.CREATED)
     metrics: Optional[dict] = Field(default=None, sa_type=JSON)

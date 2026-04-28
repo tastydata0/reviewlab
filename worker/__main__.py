@@ -6,7 +6,7 @@ from faststream.rabbit import RabbitBroker
 from sqlmodel import select
 
 from app.storage.postgres import async_session_maker
-from app.models.submission import Submission, SubmissionStatus
+from app.models.submission import Submission, SubmissionStatus, CorrectnessSource
 from app.models.task import Task
 from app.settings import SETTINGS
 
@@ -86,6 +86,9 @@ async def handle_submission(msg: dict):
         if mentor_response:
             submission.ai_review = mentor_response.review
             submission.ai_score = mentor_response.score
+            if submission.correctness is None:
+                submission.correctness = mentor_response.correctness
+                submission.correctness_source = CorrectnessSource.AI
 
         submission.status = SubmissionStatus.PROCESSED
 
