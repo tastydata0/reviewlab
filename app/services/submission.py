@@ -89,3 +89,24 @@ class SubmissionService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found"
             )
         return submission
+
+    async def get_best_user_submission(
+        self, user_id: uuid.UUID, task_id: str
+    ) -> Optional[Submission]:
+        statement = (
+            select(Submission)
+            .where(
+                Submission.user_id == user_id,
+                Submission.task_id == task_id.upper(),
+                Submission.status == SubmissionStatus.PROCESSED,
+                Submission.correctness != None,
+            )
+            .order_by(
+                desc(Submission.correctness),
+                desc(Submission.ai_score),
+                desc(Submission.timestamp),
+            )
+            .limit(1)
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().first()

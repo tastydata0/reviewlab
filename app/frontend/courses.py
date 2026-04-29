@@ -429,7 +429,14 @@ async def get_course_detail(session, course_id: str):
         )
 
 
-def render_task_item(t, cid, lid, role, best_score: Optional[float] = None):
+def render_task_item(
+    t,
+    cid,
+    lid,
+    role,
+    best_score: Optional[float] = None,
+    best_correctness: Optional[float] = None,
+):
     # Рендеринг Markdown для описания задачи
     rendered_description = NotStr(
         markdown.markdown(
@@ -453,9 +460,13 @@ def render_task_item(t, cid, lid, role, best_score: Optional[float] = None):
     score_display = ""
     if best_score is not None:
         score_percent = min(100, best_score * 10)
+        label = f"Ваш лучший результат: {best_score}"
+        if best_correctness is not None:
+            label += f" (правильность {best_correctness})"
+
         score_display = Div(
             P(
-                B(f"Ваш лучший результат: {best_score}"),
+                B(label),
                 style="margin-bottom: 5px; color: #28a745;",
             ),
             Div(
@@ -539,15 +550,29 @@ async def get_cancel_edit_task(session, course_id: str, lab_id: str, task_id: st
     async with async_session_maker() as db_session:
         task = await TaskService(db_session).get_task(tid)
         best_score = None
+        best_correctness = None
         if role == UserRole.student.value:
-            subs = await SubmissionService(db_session).get_user_submissions(user_id)
-            task_scores = [
-                s.ai_score
-                for s in subs
-                if s.task_id == task.join_code and s.ai_score is not None
-            ]
-            best_score = max(task_scores) / 10.0 if task_scores else None
-        return render_task_item(task, course_id, lab_id, role, best_score=best_score)
+            sub_service = SubmissionService(db_session)
+            best_sub = await sub_service.get_best_user_submission(
+                user_id, task.join_code
+            )
+            if best_sub:
+                best_correctness = (
+                    best_sub.correctness / 10.0
+                    if best_sub.correctness is not None
+                    else None
+                )
+                best_score = (
+                    best_sub.ai_score / 10.0 if best_sub.ai_score is not None else None
+                )
+        return render_task_item(
+            task,
+            course_id,
+            lab_id,
+            role,
+            best_score=best_score,
+            best_correctness=best_correctness,
+        )
 
 
 @rt("/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/edit", methods=["POST"])
@@ -566,18 +591,32 @@ async def post_edit_task(
     async with async_session_maker() as db_session:
         task = await TaskService(db_session).update_task(tid, name, description)
         best_score = None
+        best_correctness = None
         if role == UserRole.student.value:
-            subs = await SubmissionService(db_session).get_user_submissions(user_id)
-            task_scores = [
-                s.ai_score
-                for s in subs
-                if s.task_id == task.join_code and s.ai_score is not None
-            ]
-            best_score = max(task_scores) / 10.0 if task_scores else None
-        return render_task_item(task, course_id, lab_id, role, best_score=best_score)
+            sub_service = SubmissionService(db_session)
+            best_sub = await sub_service.get_best_user_submission(
+                user_id, task.join_code
+            )
+            if best_sub:
+                best_correctness = (
+                    best_sub.correctness / 10.0
+                    if best_sub.correctness is not None
+                    else None
+                )
+                best_score = (
+                    best_sub.ai_score / 10.0 if best_sub.ai_score is not None else None
+                )
+        return render_task_item(
+            task,
+            course_id,
+            lab_id,
+            role,
+            best_score=best_score,
+            best_correctness=best_correctness,
+        )
 
 
-def render_submission_card(s):
+def render_submission_card(s, is_best=False):
     score = s.ai_score or 0
     score_percent = min(100, score)
 
@@ -594,9 +633,14 @@ def render_submission_card(s):
     for filename, content in s.source_code.items():
         code_content += f"--- {filename} ---\n{content}\n\n"
 
+    best_badge = ""
+    if is_best:
+        best_badge = Span("🌟 Лучшее решение", _class="badge badge-best")
+
     return Div(
         Div(
             Div(
+                best_badge,
                 P(
                     B(f"Общая оценка - {score / 10.0 if score else 0.0}"),
                     style="color: #28a745; margin-bottom: 0;",
@@ -684,12 +728,20 @@ async def get_my_submissions_for_task(
         task = await TaskService(db_session).get_task_by_join_code(task_id)
         lab = await TaskService(db_session).get_task_group(uuid.UUID(lab_id))
         course = await CourseService(db_session).get_course(uuid.UUID(course_id))
-        submissions = await SubmissionService(db_session).get_user_submissions(user_id)
-        # Filter for this specific task
-        task_submissions = [s for s in submissions if s.task_id == task_id]
+
+        sub_service = SubmissionService(db_session)
+        best_sub = await sub_service.get_best_user_submission(user_id, task_id)
+        all_subs = await sub_service.get_user_submissions(user_id)
+
+        task_submissions = [s for s in all_subs if s.task_id == task_id]
         task_submissions.sort(key=lambda x: x.timestamp, reverse=True)
 
-        cards = [render_submission_card(s) for s in task_submissions]
+        cards = []
+        if best_sub:
+            cards.append(render_submission_card(best_sub, is_best=True))
+            task_submissions = [s for s in task_submissions if s.id != best_sub.id]
+
+        cards.extend([render_submission_card(s) for s in task_submissions])
 
         header = await render_header(
             session,
@@ -746,19 +798,34 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
         else:
             if role == UserRole.student.value:
                 sub_service = SubmissionService(db_session)
-                user_subs = await sub_service.get_user_submissions(user_id)
-
                 task_items = []
                 for t in lab.tasks:
-                    # Find best score for this task
-                    task_scores = [
-                        s.ai_score
-                        for s in user_subs
-                        if s.task_id == t.join_code and s.ai_score is not None
-                    ]
-                    best_score = max(task_scores) / 10.0 if task_scores else None
+                    best_sub = await sub_service.get_best_user_submission(
+                        user_id, t.join_code
+                    )
+                    best_score = None
+                    best_correctness = None
+                    if best_sub:
+                        best_correctness = (
+                            best_sub.correctness / 10.0
+                            if best_sub.correctness is not None
+                            else None
+                        )
+                        best_score = (
+                            best_sub.ai_score / 10.0
+                            if best_sub.ai_score is not None
+                            else None
+                        )
+
                     task_items.append(
-                        render_task_item(t, cid, lid, role, best_score=best_score)
+                        render_task_item(
+                            t,
+                            cid,
+                            lid,
+                            role,
+                            best_score=best_score,
+                            best_correctness=best_correctness,
+                        )
                     )
             else:
                 task_items = [render_task_item(t, cid, lid, role) for t in lab.tasks]
