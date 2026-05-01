@@ -1,12 +1,13 @@
 import uuid
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
+from typing import Optional
 
 from app.storage.postgres import get_session
 from app.services.submission import SubmissionService
 from app.api.deps.auth import get_current_user_id
 from app.api.deps.mq import get_mq_service, RabbitMQService
-from app.models.submission import Submission, SubmissionRead
+from app.models.submission import Submission, SubmissionRead, CorrectnessSource
 
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -17,6 +18,8 @@ async def create_submission(
     task_id: str = Form(...),
     files: list[UploadFile] = File(...),
     language: str = Form("python"),
+    correctness: Optional[int] = Form(None),
+    correctness_source: Optional[CorrectnessSource] = Form(None),
     user_id: uuid.UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
     mq_service: RabbitMQService = Depends(get_mq_service),
@@ -40,6 +43,8 @@ async def create_submission(
         task_id=task_id,
         source_code=source_code,
         language=language,
+        correctness=correctness,
+        correctness_source=correctness_source,
     )
 
 

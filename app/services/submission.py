@@ -5,7 +5,12 @@ from sqlmodel import select, desc
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import HTTPException, status
 
-from app.models.submission import Submission, SubmissionStatus, SubmissionRead
+from app.models.submission import (
+    Submission,
+    SubmissionStatus,
+    SubmissionRead,
+    CorrectnessSource,
+)
 from app.models.task import Task
 from app.models.task_group import TaskGroup
 from app.services.mq import RabbitMQService
@@ -26,6 +31,8 @@ class SubmissionService:
         task_id: str,
         source_code: dict[str, str],
         language: str = "python",
+        correctness: Optional[int] = None,
+        correctness_source: Optional[CorrectnessSource] = None,
     ) -> Submission:
         statement = select(Task).where(Task.join_code == task_id.upper())
         result = await self.session.execute(statement)
@@ -41,6 +48,8 @@ class SubmissionService:
             task_id=task.join_code,
             source_code=source_code,
             language=language,
+            correctness=correctness,
+            correctness_source=correctness_source,
             status=SubmissionStatus.CREATED,
         )
         self.session.add(submission)
