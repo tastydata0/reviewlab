@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fasthtml.common import fast_app, Style
+from fasthtml.common import fast_app, Style, Link
 
 from app.services.mq import broker
 from app.frontend.deps.auth import access_denied_handler
@@ -18,7 +18,9 @@ async def lifespan(app):
 app, rt = fast_app(
     exception_handlers={403: access_denied_handler},
     lifespan=lifespan,
+    static_dir="images",
     hdrs=(
+        Link(rel="icon", type="image/x-icon", href="images/favicon.ico"),
         Style(
             """
             .progress-container { width: 300px; height: 10px; background-color: #f3f3f3; border: 1px solid #ccc; border-radius: 5px; position: relative; overflow: hidden; margin-top: 5px; margin-bottom: 5px; }

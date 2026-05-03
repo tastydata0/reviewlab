@@ -13,67 +13,67 @@ from app.frontend.shared import render_header
 
 
 @rt("/register", methods=["GET"])
-def get_register():
-    return Titled(
-        "Регистрация",
-        Form(
-            Input(name="email", placeholder="Email", required=True),
-            Input(
-                type="password", name="password", placeholder="Пароль", required=True
+async def get_register(session):
+    header = await render_header(session, [("Регистрация", "/register")])
+    return Title("Регистрация"), header, Main(
+        Div(
+            H1("Регистрация"),
+            Form(
+                Input(name="email", placeholder="Email", required=True),
+                Input(type="password", name="password", placeholder="Пароль", required=True),
+                Input(name="full_name", placeholder="Полное имя", required=True),
+                Button("Зарегистрироваться", type="submit"),
+                method="post",
+                action="/register",
             ),
-            Input(name="full_name", placeholder="Полное имя", required=True),
-            Button("Зарегистрироваться", type="submit"),
-            method="post",
-            action="/register",
+            A("Уже есть аккаунт? Войти", href="/login"),
+            _class="container",
         ),
-        A("Уже есть аккаунт? Войти", href="/login"),
     )
 
 
 @rt("/register", methods=["POST"])
-async def post_register(email: str, password: str, full_name: str):
-    print(f"DEBUG: Attempting to register user: {email}")
+async def post_register(session, email: str, password: str, full_name: str):
     async with async_session_maker() as db_session:
         user_service = UserService(db_session)
         try:
             user = await user_service.register_user(
                 email=email, password=password, full_name=full_name
             )
-            print(f"DEBUG: User created: {user.id}")
             return RedirectResponse("/login", status_code=303)
         except HTTPException as e:
-            print(f"DEBUG: Registration error: {e.detail}")
-            return Titled(
-                "Ошибка регистрации", Div(P(e.detail), A("Назад", href="/register"))
+            header = await render_header(session, [("Регистрация", "/register")])
+            return Title("Ошибка регистрации"), header, Main(
+                Div(Div(P(e.detail), A("Назад", href="/register")), _class="container"),
             )
         except Exception as e:
-            print(f"DEBUG: Unexpected error: {str(e)}")
-            return Titled(
-                "Ошибка",
-                Div(P("Произошла непредвиденная ошибка"), A("Назад", href="/register")),
+            header = await render_header(session, [("Регистрация", "/register")])
+            return Title("Ошибка"), header, Main(
+                Div(Div(P("Произошла непредвиденная ошибка"), A("Назад", href="/register")), _class="container"),
             )
 
 
 @rt("/login", methods=["GET"])
-def get_login():
-    return Titled(
-        "Вход",
-        Form(
-            Input(name="email", placeholder="Email", required=True),
-            Input(
-                type="password", name="password", placeholder="Пароль", required=True
+async def get_login(session):
+    header = await render_header(session, [("Вход", "/login")])
+    return Title("Вход"), header, Main(
+        Div(
+            H1("Вход"),
+            Form(
+                Input(name="email", placeholder="Email", required=True),
+                Input(type="password", name="password", placeholder="Пароль", required=True),
+                Button("Войти", type="submit"),
+                method="post",
+                action="/login",
             ),
-            Button("Войти", type="submit"),
-            method="post",
-            action="/login",
+            A("Нет аккаунта? Зарегистрироваться", href="/register"),
+            _class="container",
         ),
-        A("Нет аккаунта? Зарегистрироваться", href="/register"),
     )
 
 
 @rt("/login", methods=["POST"])
 async def post_login(session, email: str, password: str):
-    print(f"DEBUG: Login attempt: {email}")
     async with async_session_maker() as db_session:
         user_service = UserService(db_session)
         try:
@@ -83,11 +83,12 @@ async def post_login(session, email: str, password: str):
             payload = AuthService.decode_token(token)
             session["user_id"] = payload["sub"]
             session["role"] = payload["role"]
-            print(f"DEBUG: Login success for {email}")
             return RedirectResponse("/me", status_code=303)
         except HTTPException as e:
-            print(f"DEBUG: Login fail: {e.detail}")
-            return Titled("Ошибка входа", Div(P(e.detail), A("Назад", href="/login")))
+            header = await render_header(session, [("Вход", "/login")])
+            return Title("Ошибка входа"), header, Main(
+                Div(Div(P(e.detail), A("Назад", href="/login")), _class="container"),
+            )
 
 
 @rt("/logout")

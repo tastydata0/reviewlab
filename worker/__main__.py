@@ -14,7 +14,7 @@ from worker.services.static_analysis.main import StaticAnalysisService
 from worker.services.llm_mentor.main import LLMMentorService
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("vkr_worker")
+logger = logging.getLogger("worker")
 
 broker = RabbitBroker(SETTINGS.RABBITMQ_URL)
 app = FastStream(broker)
