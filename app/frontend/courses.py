@@ -915,7 +915,9 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
 async def post_submit_task(
     session, course_id: str, lab_id: str, task_id: str, files: list[UploadFile]
 ):
-    require_roles(session, [UserRole.student.value])
+    require_roles(
+        session, [UserRole.student.value, UserRole.teacher.value, UserRole.admin.value]
+    )
     user_id = uuid.UUID(session["user_id"])
 
     source_code = {}
