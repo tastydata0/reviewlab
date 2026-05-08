@@ -16,6 +16,7 @@ if True:  # чтобы ruff и прочие не убрали
     from app.models.links import CourseUserLink  # noqa: F401
     from app.models.task_group import TaskGroup  # noqa: F401
     from app.models.task import Task  # noqa: F401
+    from app.models.task_stats import TaskPlagiarismStats  # noqa: F401
 
 
 dsn = SETTINGS.POSTGRES_DSN.get_secret_value()

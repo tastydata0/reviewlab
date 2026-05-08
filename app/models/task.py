@@ -1,3 +1,4 @@
+import datetime as dt
 import uuid
 import random
 import string
@@ -18,6 +19,7 @@ class Task(SQLModel, table=True):
     task_group_id: uuid.UUID = Field(foreign_key="taskgroup.id", index=True)
     name: str
     description: Optional[str] = None
+    created_at: dt.datetime = Field(default_factory=dt.datetime.now)
 
     join_code: str = Field(default_factory=generate_join_code, unique=True, index=True)
     external_slug: Optional[str] = Field(default=None, index=True)

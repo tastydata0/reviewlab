@@ -47,6 +47,8 @@ class SubmissionBase(SQLModel):
     lexical_similarity: float = Field(default=0.0)
     semantic_similarity: float = Field(default=0.0)
     plagiarism_score: float = Field(default=0.0)
+    plagiarism_score_z: float = Field(default=0.0)
+    plagiarism_matches: Optional[dict[str, float]] = Field(default=None, sa_type=JSON)
     plagiarism_verdict: PlagiarismVerdict = Field(default=PlagiarismVerdict.UNSET)
 
 

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.base import rt
+from app.models.task import Task
 from app.services.course import CourseService
 from app.services.task import TaskService
 from app.services.submission import SubmissionService
@@ -19,9 +20,12 @@ from app.utils.emojis import (
 from app.api.deps.mq import get_mq_service
 from app.storage.postgres import async_session_maker
 from app.models.user import UserRole, User
+from app.models.submission import PlagiarismVerdict, Submission
+from app.models.task_stats import TaskPlagiarismStats
 from app.models.group import StudyGroup
 from app.frontend.deps.auth import require_roles
 from app.frontend.shared import render_header
+from worker.utils.normalization.zscore import normalize_zscore_value
 
 DEFAULT_COURSE_EMOJI = "🦄"
 DEFAULT_LAB_EMOJI = "🌱"
@@ -616,14 +620,14 @@ async def post_edit_task(
         )
 
 
-def render_submission_card(s, is_best=False):
+def render_submission_card(s, is_best=False, is_teacher=False):
     score = s.ai_score or 0
     score_percent = min(100, score)
 
     correctness = s.correctness or 0
     correctness_percent = min(100, correctness)
 
-    plag_prob = s.plagiarism_score * 100
+    plag_prob = s.plagiarism_score_z
 
     linter_lines = []
     if s.linter_report:
@@ -636,6 +640,26 @@ def render_submission_card(s, is_best=False):
     best_badge = ""
     if is_best:
         best_badge = Span("🌟 Лучшее решение", _class="badge badge-best")
+
+    verdict_info = ""
+    if s.plagiarism_verdict != PlagiarismVerdict.UNSET:
+        verdict_info = Div(
+            P(
+                B("Вердикт преподавателя:"),
+                style="margin-top: 10px; margin-bottom: 5px;",
+            ),
+            render_verdict_badge(s.plagiarism_verdict),
+        )
+
+    plagiarism_details_btn = ""
+    if is_teacher:
+        plagiarism_details_btn = Button(
+            "🔍 Детали заимствований",
+            hx_get=f"/submissions/{s.id}/plagiarism-details",
+            hx_target="#modal-container",
+            _class="btn-custom btn-primary",
+            style="margin-top: 10px;",
+        )
 
     return Div(
         Div(
@@ -682,11 +706,8 @@ def render_submission_card(s, is_best=False):
                     ),
                     _class="progress-container",
                 ),
-                Div(
-                    A("Плагиат", _class="badge badge-plagiarism", href="#"),
-                    A("Не плагиат", _class="badge badge-not-plagiarism", href="#"),
-                    style="margin-top: 10px;",
-                ),
+                verdict_info,
+                plagiarism_details_btn,
                 P(
                     B("Статический анализ:"),
                     style="margin-top: 20px; margin-bottom: 5px;",
@@ -736,12 +757,18 @@ async def get_my_submissions_for_task(
         task_submissions = [s for s in all_subs if s.task_id == task_id]
         task_submissions.sort(key=lambda x: x.timestamp, reverse=True)
 
+        role = session["role"]
+        is_teacher = role in (UserRole.teacher.value, UserRole.admin.value)
         cards = []
         if best_sub:
-            cards.append(render_submission_card(best_sub, is_best=True))
+            cards.append(
+                render_submission_card(best_sub, is_best=True, is_teacher=is_teacher)
+            )
             task_submissions = [s for s in task_submissions if s.id != best_sub.id]
 
-        cards.extend([render_submission_card(s) for s in task_submissions])
+        cards.extend(
+            [render_submission_card(s, is_teacher=is_teacher) for s in task_submissions]
+        )
 
         header = await render_header(
             session,
@@ -901,6 +928,18 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
                     style="text-decoration: none; cursor: pointer; font-size: 0.6em; margin-left: 8px;",
                 )
             )
+            # Добавляем кнопку просмотра результатов
+            content.insert(
+                2,
+                Div(
+                    A(
+                        "📊 Просмотреть результаты",
+                        href=f"/courses/{cid}/labs/{lid}/results",
+                        _class="btn-custom btn-primary",
+                    ),
+                    style="margin-bottom: 20px;",
+                ),
+            )
 
         content.append(Div(id="modal-container"))
 
@@ -1036,11 +1075,341 @@ async def post_add_group_to_course(session, course_id: str, group_id: str):
         return RedirectResponse(f"/courses/{cid}", status_code=303)
 
 
-@rt("/courses/{course_id}/remove-user/{user_id}", methods=["POST"])
-async def post_remove_user(session, course_id: str, user_id: str):
+@rt("/courses/{course_id}/labs/{lab_id}/results", methods=["GET"])
+async def get_lab_results(session, course_id: str, lab_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     cid = uuid.UUID(course_id)
-    uid = uuid.UUID(user_id)
+    lid = uuid.UUID(lab_id)
+
     async with async_session_maker() as db_session:
-        await CourseService(db_session).remove_user_from_course(cid, uid)
-        return ""
+        course_service = CourseService(db_session)
+        task_service = TaskService(db_session)
+        sub_service = SubmissionService(db_session)
+
+        course = await course_service.get_course(cid)
+        lab = await task_service.get_task_group(lid)
+        users = await course_service.get_course_users(cid)
+        # Filter only students for results
+        students = [u for u in users if u.role == UserRole.student.value]
+
+        rows = []
+        for student in students:
+            for task in lab.tasks:
+                best_sub = await sub_service.get_best_user_submission(
+                    student.id, task.join_code
+                )
+                if best_sub:
+                    rows.append(
+                        {"student": student, "task": task, "submission": best_sub}
+                    )
+
+        # Сортировка: сначала по дате создания задачи (старые задачи выше), 
+        # затем по времени отправки (свежие решения выше внутри каждой задачи)
+        rows.sort(key=lambda x: (x["task"].created_at.timestamp() if x["task"].created_at else 0, -x["submission"].timestamp.timestamp()))
+
+        header = await render_header(
+            session,
+            breadcrumbs=[
+                ("Мои курсы", "/courses"),
+                (course.name_with_emoji, f"/courses/{cid}"),
+                (lab.name_with_emoji, f"/courses/{cid}/labs/{lid}"),
+                ("Результаты", f"/courses/{cid}/labs/{lid}/results"),
+            ],
+        )
+
+        table_rows = []
+        for row in rows:
+            s = row["submission"]
+            u = row["student"]
+            t = row["task"]
+
+            score = (s.ai_score / 10.0) if s.ai_score is not None else "N/A"
+            correctness = (s.correctness / 10.0) if s.correctness is not None else "N/A"
+            plag_z = f"{s.plagiarism_score_z:.0f}%"
+
+            verdict_badge = render_verdict_badge(s.plagiarism_verdict)
+
+            plagiarism_actions = Div(
+                Button(
+                    "🔍",
+                    hx_get=f"/submissions/{s.id}/plagiarism-details",
+                    hx_target="#modal-container",
+                    _class="btn-custom btn-primary",
+                    style="padding: 2px 5px; margin-right: 2px;",
+                    title="Детали заимствований",
+                ),
+                Button(
+                    "📝",
+                    hx_get=f"/submissions/{s.id}/preview",
+                    hx_target="#modal-container",
+                    _class="btn-custom btn-secondary",
+                    style="padding: 2px 5px; margin-right: 2px;",
+                    title="Быстрый просмотр кода",
+                ),
+                Button(
+                    "✅",
+                    hx_post=f"/submissions/{s.id}/verdict/CONFIRMED",
+                    hx_target=f"#verdict-{s.id}",
+                    _class="btn-custom btn-success",
+                    style="padding: 2px 5px; margin-right: 2px;",
+                    title="Подтвердить плагиат",
+                ),
+                Button(
+                    "❌",
+                    hx_post=f"/submissions/{s.id}/verdict/DECLINED",
+                    hx_target=f"#verdict-{s.id}",
+                    _class="btn-custom btn-danger",
+                    style="padding: 2px 5px;",
+                    title="Опровергнуть плагиат",
+                ),
+                style="display: flex; align-items: center;",
+            )
+
+            table_rows.append(
+                Tr(
+                    Td(u.full_name),
+                    Td(t.name),
+                    Td(score),
+                    Td(correctness),
+                    Td(s.language),
+                    Td(s.timestamp.strftime("%d.%m.%Y %H:%M")),
+                    Td(plag_z),
+                    Td(
+                        Div(
+                            verdict_badge,
+                            plagiarism_actions,
+                            id=f"verdict-{s.id}",
+                            style="display: flex; flex-direction: column; gap: 5px;",
+                        )
+                    ),
+                    Td(
+                        A(
+                            "👁️",
+                            href=f"/submissions/{s.id}",
+                            _class="btn-custom btn-secondary",
+                            style="padding: 5px 10px;",
+                            title="Просмотреть попытку",
+                        )
+                    ),
+                )
+            )
+
+        content = [
+            H1(f"Результаты: {lab.name}"),
+            Div(
+                Table(
+                    Thead(
+                        Tr(
+                            Th("Студент"),
+                            Th("Задача"),
+                            Th("ИИ"),
+                            Th("Правильность"),
+                            Th("Язык"),
+                            Th("Дата"),
+                            Th("Плагиат"),
+                            Th("Вердикт и управление"),
+                            Th("Обзор"),
+                        )
+                    ),
+                    Tbody(*table_rows),
+                    _class="custom-table",
+                ),
+                _class="custom-table-container",
+            ),
+            Div(id="modal-container"),
+        ]
+
+        return (
+            Title(f"Результаты: {lab.name}"),
+            header,
+            Main(*content, _class="container"),
+        )
+
+
+def render_verdict_badge(verdict: PlagiarismVerdict):
+    if verdict == PlagiarismVerdict.CONFIRMED:
+        return Span("⚠️ Подтвержден", _class="badge badge-plagiarism")
+    elif verdict == PlagiarismVerdict.DECLINED:
+        return Span("✅ Опровергнут", _class="badge badge-not-plagiarism")
+    else:
+        return Span("⏳ Ожидает вердикта", style="color: gray; font-style: italic;")
+
+
+@rt("/submissions/{submission_id}/verdict/{verdict}", methods=["POST"])
+async def post_update_verdict(session, submission_id: str, verdict: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    sid = uuid.UUID(submission_id)
+    new_verdict = PlagiarismVerdict(verdict)
+
+    async with async_session_maker() as db_session:
+        submission = await db_session.get(Submission, sid)
+        if submission:
+            submission.plagiarism_verdict = new_verdict
+            db_session.add(submission)
+            await db_session.commit()
+
+            # Возвращаем обновленный блок вердикта и кнопок управления
+            verdict_badge = render_verdict_badge(new_verdict)
+            plagiarism_actions = Div(
+                Button(
+                    "🔍",
+                    hx_get=f"/submissions/{sid}/plagiarism-details",
+                    hx_target="#modal-container",
+                    _class="btn-custom btn-primary",
+                    style="padding: 2px 5px; margin-right: 2px;",
+                    title="Детали заимствований",
+                ),
+                Button(
+                    "📝",
+                    hx_get=f"/submissions/{sid}/preview",
+                    hx_target="#modal-container",
+                    _class="btn-custom btn-secondary",
+                    style="padding: 2px 5px; margin-right: 2px;",
+                    title="Быстрый просмотр кода",
+                ),
+                Button(
+                    "✅",
+                    hx_post=f"/submissions/{sid}/verdict/CONFIRMED",
+                    hx_target=f"#verdict-{sid}",
+                    _class="btn-custom btn-success",
+                    style="padding: 2px 5px; margin-right: 2px;",
+                    title="Подтвердить плагиат",
+                ),
+                Button(
+                    "❌",
+                    hx_post=f"/submissions/{sid}/verdict/DECLINED",
+                    hx_target=f"#verdict-{sid}",
+                    _class="btn-custom btn-danger",
+                    style="padding: 2px 5px;",
+                    title="Опровергнуть плагиат",
+                ),
+                style="display: flex; align-items: center;",
+            )
+            return verdict_badge, plagiarism_actions
+    return "Error"
+
+
+@rt("/submissions/{submission_id}/preview", methods=["GET"])
+async def get_submission_preview(session, submission_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    sid = uuid.UUID(submission_id)
+    async with async_session_maker() as db_session:
+        submission = await db_session.get(Submission, sid)
+        if not submission:
+            return "Not found"
+
+        code_content = ""
+        for filename, content in submission.source_code.items():
+            code_content += f"--- {filename} ---\n{content}\n\n"
+
+        content = Div(
+            Pre(
+                code_content,
+                style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-size: 0.85em; max-height: 60vh; overflow-y: auto;",
+            ),
+            style="margin-top: 10px;",
+        )
+        return render_modal(
+            f"Просмотр кода: {submission.language}", content, "code-preview-modal"
+        )
+
+
+@rt("/submissions/{submission_id}/plagiarism-details", methods=["GET"])
+async def get_plagiarism_details(session, submission_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    sid = uuid.UUID(submission_id)
+
+    async with async_session_maker() as db_session:
+        submission = await db_session.get(Submission, sid)
+        if not submission:
+            return "Submission not found"
+
+        # Находим реальный UUID задачи по join_code из посылки
+        task_stmt = select(Task).where(Task.join_code == submission.task_id.upper())
+        task_res = await db_session.execute(task_stmt)
+        task = task_res.scalars().first()
+        task_id_uuid = task.id if task else None
+
+        # Получаем статистику для динамической нормализации по UUID
+        mean, std_dev = 0.0, 0.0
+        if task_id_uuid:
+            stats = await db_session.get(TaskPlagiarismStats, task_id_uuid)
+            mean = stats.mean if stats else 0.0
+            std_dev = stats.std_dev if stats else 0.0
+
+        matches = submission.plagiarism_matches or {}
+        if not matches:
+            return render_modal(
+                "Детали заимствований",
+                P("Совпадений не найдено."),
+                "plag-details-modal",
+            )
+
+        match_rows = []
+        for other_id, raw_score in matches.items():
+            other_sid = uuid.UUID(other_id)
+            other_sub = await db_session.get(Submission, other_sid)
+            if other_sub:
+                other_user = await db_session.get(User, other_sub.user_id)
+                user_name = other_user.full_name if other_user else "Неизвестен"
+
+                # Нормализуем сырой балл динамически
+                norm_score = normalize_zscore_value(raw_score, mean, std_dev)
+
+                match_rows.append(
+                    Tr(
+                        Td(
+                            A(
+                                user_name,
+                                href=f"/submissions/{other_sub.id}",
+                                target="_blank",
+                            )
+                        ),
+                        Td(f"{norm_score:.1f}%"),
+                        Td(other_sub.timestamp.strftime("%d.%m.%Y %H:%M")),
+                        Td(other_sub.language),
+                    )
+                )
+
+        content = Div(
+            Table(
+                Thead(Tr(Th("У кого списал"), Th("Схожесть"), Th("Дата"), Th("Язык"))),
+                Tbody(*match_rows),
+                _class="custom-table",
+            ),
+            _class="custom-table-container",
+        )
+        return render_modal("Детали заимствований", content, "plag-details-modal")
+
+
+@rt("/submissions/{submission_id}", methods=["GET"])
+async def get_submission_view(session, submission_id: str):
+    require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    sid = uuid.UUID(submission_id)
+
+    async with async_session_maker() as db_session:
+        submission = await db_session.get(Submission, sid)
+        if not submission:
+            return Titled("Ошибка", P("Посылка не найдена"))
+
+        user = await db_session.get(User, submission.user_id)
+        task = await TaskService(db_session).get_task_by_join_code(submission.task_id)
+
+        header = await render_header(
+            session, [("Просмотр посылки", f"/submissions/{sid}")]
+        )
+
+        card = render_submission_card(submission, is_teacher=True)
+
+        return (
+            Title(f"Посылка: {user.full_name if user else sid}"),
+            header,
+            Main(
+                H1(f"Посылка {user.full_name if user else sid}"),
+                P(B("Задача: "), task.name),
+                Hr(),
+                card,
+                Div(id="modal-container"),
+                _class="container",
+            ),
+        )
