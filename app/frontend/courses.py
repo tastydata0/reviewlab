@@ -693,9 +693,14 @@ def render_submission_card(s, is_best=False, is_teacher=False):
                     B("ИИ-рецензия"),
                     style="margin-top: 20px; margin-bottom: 5px;",
                 ),
-                P(
-                    s.ai_review or "Рецензия еще не готова.",
-                    style="font-size: 0.9em; line-height: 1.4;",
+                Div(
+                    NotStr(
+                        markdown.markdown(
+                            s.ai_review or "Рецензия еще не готова.",
+                            extensions=["extra", "codehilite", "sane_lists"],
+                        )
+                    ),
+                    style="font-size: 0.9em; line-height: 1.4; border-left: 3px solid #007bff; padding-left: 15px; background: #f0f7ff; padding: 10px; border-radius: 5px;",
                 ),
                 P(B("Плагиат:"), style="margin-top: 20px; margin-bottom: 5px;"),
                 P(f"Вероятность - {plag_prob:.0f}%", style="margin-bottom: 5px;"),
