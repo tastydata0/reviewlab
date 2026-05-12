@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional, TYPE_CHECKING
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column, JSON
 
 from app.models.links import CourseUserLink
 
@@ -15,6 +15,8 @@ class Course(SQLModel, table=True):
     emoji: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
     teacher_id: uuid.UUID = Field(foreign_key="user.id")
+
+    settings: dict = Field(default_factory=dict, sa_column=Column(JSON))
 
     users: list["User"] = Relationship(
         back_populates="courses", link_model=CourseUserLink
