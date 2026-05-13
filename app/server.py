@@ -7,7 +7,7 @@ from app.api.tasks import router as api_tasks_router
 
 # регистрация роутов фронтенда
 if 1:
-    from app.frontend import users, courses, landing
+    from app.frontend import users, courses, landing, labs, settings, submissions
 
 api_app = FastAPI()
 api_app.include_router(api_submissions_router)
