@@ -401,9 +401,7 @@ async def get_submission_view(session, submission_id: str):
     sid = uuid.UUID(submission_id)
 
     async with async_session_maker() as db_session:
-        submission = await session.get(Submission, sid)
-        if not submission:
-            submission = await db_session.get(Submission, sid)
+        submission = await db_session.get(Submission, sid)
         if not submission:
             return Titled("Ошибка", P("Посылка не найдена"))
 

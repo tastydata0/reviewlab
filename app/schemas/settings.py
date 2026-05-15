@@ -27,8 +27,7 @@ class LinterSettings(BaseModel):
 
 
 class LLMSettings(BaseModel):
-    prompt_preset_id: int = Field(default=3, description="ID готового пресета промпта (1-10)")
-    strictness_level: int = Field(default=5, description="Уровень строгости ИИ (1-10) для слайдера на фронте")
+    strictness_level: int = Field(default=5, description="Уровень строгости ИИ (1-10)")
     custom_instruction_1: Optional[str] = Field(default="", description="Дополнительная инструкция ИИ-ментору (слот 1)")
     custom_instruction_2: Optional[str] = Field(default="", description="Дополнительная инструкция ИИ-ментору (слот 2)")
     custom_instruction_3: Optional[str] = Field(default="", description="Дополнительная инструкция ИИ-ментору (слот 3)")
@@ -54,10 +53,6 @@ class CascadingSettings(BaseModel):
     forbidden_patterns: list[str] = Field(
         default_factory=list,
         description="Список запрещенных regex-паттернов в коде"
-    )
-    auto_approve_threshold: Optional[float] = Field(
-        default=None, 
-        description="Порог оценки для автоматического одобрения (0.0 - 1.0)"
     )
 
     @classmethod

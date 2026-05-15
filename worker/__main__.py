@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid
+import re
 from faststream import FastStream
 from faststream.rabbit import RabbitBroker
 from sqlmodel import select
@@ -11,6 +12,8 @@ from app.models.submission import Submission, SubmissionStatus, CorrectnessSourc
 from app.models.task import Task
 from app.models.task_stats import TaskPlagiarismStats
 from app.settings import SETTINGS
+from app.services.settings import get_effective_settings
+from app.schemas.settings import CascadingSettings
 
 from worker.services.static_analysis.main import StaticAnalysisService
 from worker.services.llm_mentor.main import LLMMentorService
@@ -43,11 +46,36 @@ async def handle_submission(msg: dict):
         session.add(submission)
         await session.commit()
 
-        logger.info(f"Running analysis for submission {submission_id}...")
+        # Resolve Task early to get real UUID and Settings
+        task_stmt = select(Task).where(Task.join_code == submission.task_id.upper())
+        task_res = await session.execute(task_stmt)
+        task = task_res.scalars().first()
+        task_id_uuid = task.id if task else None
+        
+        settings = CascadingSettings()
+        if task_id_uuid:
+            settings = await get_effective_settings(session, task_id_uuid)
+
+        logger.info(f"Running analysis for submission {submission_id} with effective settings...")
+
+        # Forbidden Patterns Check
+        combined_code = "\n\n".join(submission.source_code.values())
+        for pattern in settings.forbidden_patterns:
+            try:
+                if re.search(pattern, combined_code):
+                    submission.status = SubmissionStatus.PROCESSED
+                    submission.ai_review = f"🛑 Ваше решение содержит запрещенный паттерн: `{pattern}`. Пожалуйста, исправьте это."
+                    submission.ai_score = 0
+                    await session.commit()
+                    return
+            except re.error:
+                logger.error(f"Invalid regex pattern in settings: {pattern}")
 
         # Static Analysis
         linter_report = await static_analysis_service.analyze(
-            source_code=submission.source_code, language=submission.language
+            source_code=submission.source_code, 
+            language=submission.language,
+            settings=settings.linter
         )
         if linter_report:
             submission.linter_report = linter_report
@@ -65,18 +93,13 @@ async def handle_submission(msg: dict):
             current_submission=submission,
             other_submissions=other_submissions,
             language=submission.language,
+            settings=settings.plagiarism
         )
         submission.plagiarism_score = plag_score
         submission.lexical_similarity = lex_sim
         submission.semantic_similarity = sem_sim
         submission.plagiarism_matches = plag_matches
         submission.plagiarism_checked = True
-
-        # Resolve Task early to get real UUID
-        task_stmt = select(Task).where(Task.join_code == submission.task_id.upper())
-        task_res = await session.execute(task_stmt)
-        task = task_res.scalars().first()
-        task_id_uuid = task.id if task else None
 
         # Z-score Normalization: Recalculate for ALL submissions of this task
         all_task_subs_stmt = select(Submission).where(
@@ -105,9 +128,10 @@ async def handle_submission(msg: dict):
             session.add(stats)
 
         # Update Z-scores for all submissions in pool using new stats
+        max_z = settings.plagiarism.max_z
         for sub_in_pool in pool:
             sub_in_pool.plagiarism_score_z = normalize_zscore_value(
-                sub_in_pool.plagiarism_score, mean, std_dev
+                sub_in_pool.plagiarism_score, mean, std_dev, max_z=max_z
             )
             session.add(sub_in_pool)
 
@@ -142,6 +166,7 @@ async def handle_submission(msg: dict):
             previous_linter_report=(
                 prev_submission.linter_report if prev_submission else None
             ),
+            settings=settings.llm
         )
 
         if mentor_response:

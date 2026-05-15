@@ -15,6 +15,8 @@ from app.models.task import Task
 from app.models.task_group import TaskGroup
 from app.services.mq import RabbitMQService
 
+from app.services.settings import get_effective_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,6 +44,20 @@ class SubmissionService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Task with join code {task_id} not found",
             )
+
+        # Enforce submission limit
+        settings = await get_effective_settings(self.session, task.id)
+        if settings.submission_limit > 0:
+            count_stmt = select(Submission).where(
+                Submission.user_id == user_id, Submission.task_id == task.join_code
+            )
+            count_res = await self.session.execute(count_stmt)
+            existing_count = len(count_res.scalars().all())
+            if existing_count >= settings.submission_limit:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Достигнут лимит попыток для этой задачи ({settings.submission_limit})",
+                )
 
         submission = Submission(
             user_id=user_id,
