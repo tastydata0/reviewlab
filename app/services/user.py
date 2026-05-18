@@ -1,5 +1,6 @@
 import uuid
 import datetime as dt
+import re
 from typing import Optional
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
@@ -15,9 +16,42 @@ class UserService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    def _validate_password(self, password: str):
+        """
+        Проверяет пароль на соответствие требованиям безопасности:
+        - 8 и более символов
+        - Хотя бы 1 цифра или спец. символ
+        - Хотя бы 1 латинская буква в нижнем регистре
+        - Хотя бы 1 латинская буква в верхнем регистре
+        """
+        if len(password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Пароль должен содержать не менее 8 символов",
+            )
+
+        if not re.search(r"[a-z]", password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Пароль должен содержать хотя бы одну латинскую букву в нижнем регистре",
+            )
+
+        if not re.search(r"[A-Z]", password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Пароль должен содержать хотя бы одну латинскую букву в верхнем регистре",
+            )
+
+        if not re.search(r"[\d\W_]", password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Пароль должен содержать хотя бы одну цифру или специальный символ",
+            )
+
     async def register_user(
         self, email: EmailStr, password: str, full_name: str
     ) -> User:
+        self._validate_password(password)
         statement = select(User).where(User.email == email)
         result = await self.session.execute(statement)
         if result.scalars().first():

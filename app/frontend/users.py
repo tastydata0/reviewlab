@@ -15,18 +15,66 @@ from app.frontend.shared import render_header
 @rt("/register", methods=["GET"])
 async def get_register(session):
     header = await render_header(session, [("Регистрация", "/register")])
+    
+    validation_script = """
+    function validatePassword() {
+        const pwd = document.getElementById('password').value;
+        const btn = document.getElementById('reg-btn');
+        const reqList = document.getElementById('password-requirements');
+        
+        if (pwd.length > 0) {
+            reqList.style.display = 'block';
+        } else {
+            reqList.style.display = 'none';
+        }
+        
+        const reqs = {
+            len: pwd.length >= 8,
+            low: /[a-z]/.test(pwd),
+            up: /[A-Z]/.test(pwd),
+            spec: /[\\d\\W_]/.test(pwd)
+        };
+        
+        document.getElementById('req-len').style.color = reqs.len ? '#28a745' : '#dc3545';
+        document.getElementById('req-low').style.color = reqs.low ? '#28a745' : '#dc3545';
+        document.getElementById('req-up').style.color = reqs.up ? '#28a745' : '#dc3545';
+        document.getElementById('req-spec').style.color = reqs.spec ? '#28a745' : '#dc3545';
+        
+        btn.disabled = !(reqs.len && reqs.low && reqs.up && reqs.spec);
+    }
+    """
+    
     return Title("Регистрация"), header, Main(
         Div(
             H1("Регистрация"),
             Form(
-                Input(name="email", placeholder="Email", required=True),
-                Input(type="password", name="password", placeholder="Пароль", required=True),
+                Input(name="email", placeholder="Email", required=True, type="email"),
+                Input(
+                    type="password", 
+                    name="password", 
+                    id="password",
+                    placeholder="Пароль", 
+                    required=True,
+                    oninput="validatePassword()"
+                ),
+                Div(
+                    Ul(
+                        Li("Минимум 8 символов", id="req-len"),
+                        Li("Хотя бы одна строчная буква (a-z)", id="req-low"),
+                        Li("Хотя бы одна заглавная буква (A-Z)", id="req-up"),
+                        Li("Цифра или спец. символ (@, #, 1...)", id="req-spec"),
+                        style="font-size: 0.8em; color: #dc3545; list-style-type: none; padding-left: 0;"
+                    ),
+                    id="password-requirements",
+                    style="display: none; margin-bottom: 15px;"
+                ),
                 Input(name="full_name", placeholder="Полное имя", required=True),
-                Button("Зарегистрироваться", type="submit"),
+                Button("Зарегистрироваться", type="submit", id="reg-btn", disabled=True, _class="btn-custom btn-primary"),
                 method="post",
                 action="/register",
             ),
             A("Уже есть аккаунт? Войти", href="/login"),
+            Script(NotStr(validation_script)),
             _class="container",
         ),
     )
