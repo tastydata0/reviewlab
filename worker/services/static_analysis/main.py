@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 class StaticAnalysisService:
+    LANGUAGE_TO_LINTER = {
+        "python": "flake8",
+        "cpp": "cppcheck",
+        "java": "checkstyle"
+    }
+
     def __init__(self):
         # Пресеты для линтеров (наборы аргументов CLI)
         self.presets = {
@@ -37,7 +43,7 @@ class StaticAnalysisService:
             },
         }
 
-    def _autdetect_language(self, source_code: dict[str, str]) -> str:
+    def _autodetect_language(self, source_code: dict[str, str]) -> str:
         extensions = {
             ".py": "python",
             ".cpp": "cpp",
@@ -72,14 +78,16 @@ class StaticAnalysisService:
             return None
 
         if not language:
-            language = self._autdetect_language(source_code)
+            language = self._autodetect_language(source_code)
 
         language = language.lower()
 
         # Check if this linter is enabled in cascading settings
-        if settings and language not in settings.enabled_linters:
-            logger.info(f"Linter for {language} is disabled in cascading settings.")
-            return None
+        if settings:
+            linter_name = self.LANGUAGE_TO_LINTER.get(language)
+            if linter_name and linter_name not in settings.enabled_linters:
+                logger.info(f"Linter {linter_name} for {language} is disabled in cascading settings.")
+                return None
 
         # Resolve preset and custom args
         extra_args = []
