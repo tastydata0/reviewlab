@@ -5,6 +5,7 @@ import shlex
 from typing import Optional
 
 from app.schemas.settings import LinterSettings
+from app.utils.language import autodetect_language
 from worker.config import WORKER_CONFIG
 from worker.services.static_analysis.python import Flake8AnalysisStrategy
 from worker.services.static_analysis.cpp import CppcheckAnalysisStrategy
@@ -43,30 +44,6 @@ class StaticAnalysisService:
             },
         }
 
-    def _autodetect_language(self, source_code: dict[str, str]) -> str:
-        extensions = {
-            ".py": "python",
-            ".cpp": "cpp",
-            ".cc": "cpp",
-            ".cxx": "cpp",
-            ".c": "cpp",
-            ".hpp": "cpp",
-            ".h": "cpp",
-            ".java": "java",
-        }
-
-        counts = {"python": 0, "cpp": 0, "java": 0}
-
-        for filename in source_code.keys():
-            ext = os.path.splitext(filename)[1].lower()
-            if ext in extensions:
-                counts[extensions[ext]] += 1
-
-        detected = max(counts.items(), key=lambda x: x[1])[0]
-        if counts[detected] == 0:
-            return "python"
-        return detected
-
     async def analyze(
         self,
         source_code: dict[str, str],
@@ -78,7 +55,7 @@ class StaticAnalysisService:
             return None
 
         if not language:
-            language = self._autodetect_language(source_code)
+            language = autodetect_language(source_code)
 
         language = language.lower()
 

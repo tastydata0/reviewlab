@@ -8,6 +8,7 @@ from app.services.submission import SubmissionService
 from app.api.deps.auth import get_current_user_id
 from app.api.deps.mq import get_mq_service, RabbitMQService
 from app.models.submission import Submission, SubmissionRead, CorrectnessSource
+from app.utils.language import autodetect_language
 
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/submissions", tags=["submissions"])
 async def create_submission(
     task_id: str = Form(...),
     files: list[UploadFile] = File(...),
-    language: str = Form("python"),
+    language: Optional[str] = Form(None),
     correctness: Optional[int] = Form(None),
     correctness_source: Optional[CorrectnessSource] = Form(None),
     user_id: uuid.UUID = Depends(get_current_user_id),
@@ -36,6 +37,9 @@ async def create_submission(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File {file.filename} is not a valid text file",
             )
+
+    if not language:
+        language = autodetect_language(source_code)
 
     service = SubmissionService(session, mq_service=mq_service)
     return await service.create_submission(

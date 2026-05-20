@@ -15,6 +15,7 @@ from app.storage.postgres import async_session_maker
 from app.frontend.deps.auth import require_roles
 from app.frontend.shared import render_header, render_modal, render_emoji_select
 from app.utils.emojis import get_all_lab_emojis
+from app.utils.language import autodetect_language
 from app.frontend.submissions import render_verdict_badge
 
 
@@ -489,8 +490,11 @@ async def post_submit_task(
     async with async_session_maker() as db_session:
         mq_service = await get_mq_service()
         service = SubmissionService(db_session, mq_service=mq_service)
+        
+        language = autodetect_language(source_code)
+        
         await service.create_submission(
-            user_id=user_id, task_id=task_id, source_code=source_code
+            user_id=user_id, task_id=task_id, source_code=source_code, language=language
         )
         return RedirectResponse(f"/courses/{course_id}/labs/{lab_id}", status_code=303)
 
