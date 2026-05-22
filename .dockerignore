@@ -1,0 +1,13 @@
+.env
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+bin/linters/checkstyle-all.jar
+bin/linters/configs/*.xml
+node_modules
+*.log
+docker-compose.yml
+Dockerfile.*

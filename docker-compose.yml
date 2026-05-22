@@ -11,6 +11,11 @@ services:
       - "5432:5432"
     volumes:
       - vkr_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vkr_user -d vkr_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -21,6 +26,11 @@ services:
       - "15672:15672"
     volumes:
       - vkr_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -30,6 +40,55 @@ services:
       - "6379:6379"
     volumes:
       - vkr_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: vkr-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - POSTGRES_DSN=${POSTGRES_DSN:-postgresql+asyncpg://vkr_user:vkr_password@db:5432/vkr_db}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - OPENAI_API_KEY
+      - OPENAI_API_BASE_URL
+      - HF_TOKEN
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: vkr-worker
+    restart: always
+    environment:
+      - POSTGRES_DSN=${POSTGRES_DSN:-postgresql+asyncpg://vkr_user:vkr_password@db:5432/vkr_db}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - OPENAI_API_KEY
+      - OPENAI_API_BASE_URL
+      - HF_TOKEN
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   vkr_pgdata:

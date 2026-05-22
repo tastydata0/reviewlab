@@ -1,0 +1,27 @@
+# Use a specialized uv image for fast dependency installation
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS base
+
+WORKDIR /app
+
+# Install system dependencies needed for the application
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies globally in the container system python
+# This avoids virtualenv activation issues in Docker
+RUN uv pip install --system --no-cache .
+
+# Copy the rest of the application
+COPY . .
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+
+# Backend specific stage
+FROM base AS backend
+EXPOSE 8080
+CMD ["python", "-m", "app"]

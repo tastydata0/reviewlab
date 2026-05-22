@@ -29,6 +29,7 @@ dependencies = [
     "markdown>=3.10.2",
     "aio-pika>=9.6.2",
     "faststream[rabbit]>=0.6.7",
+    "flake8>=7.3.0",
 ]
 
 [dependency-groups]

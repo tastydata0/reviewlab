@@ -1,0 +1,38 @@
+# Use a specialized uv image for fast dependency installation
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS base
+
+WORKDIR /app
+
+# Install system dependencies:
+# 1. curl for downloading assets
+# 2. cppcheck for C++ analysis
+# 3. openjdk-17-jre-headless for Checkstyle (Java)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    cppcheck \
+    openjdk-17-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies globally in the container system python
+RUN uv pip install --system --no-cache .
+
+# Copy the rest of the application
+COPY . .
+
+# Run the linter setup script to download Checkstyle and configs
+RUN bash scripts/setup_linters.sh
+
+# Ensure entrypoint is executable
+RUN chmod +x scripts/entrypoint_worker.sh
+
+# Set environment variables
+# Add our bin/linters to PATH so worker can call 'checkstyle' directly
+ENV PATH="/app/bin/linters:$PATH"
+ENV PYTHONUNBUFFERED=1
+
+# Worker specific stage
+FROM base AS worker
+ENTRYPOINT ["scripts/entrypoint_worker.sh"]
