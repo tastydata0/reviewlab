@@ -16,7 +16,19 @@ from app.frontend.deps.auth import require_roles
 from app.frontend.shared import render_header, render_modal, render_emoji_select
 from app.utils.emojis import get_all_lab_emojis
 from app.utils.language import autodetect_language
+from app.models.submission import SubmissionStatus
 from app.frontend.submissions import render_verdict_badge
+
+
+def render_status_badge(status: str):
+    mapping = {
+        SubmissionStatus.CREATED: ("Создано", "#007bff"),
+        SubmissionStatus.PROCESSING: ("Обрабатывается", "#fd7e14"),
+        SubmissionStatus.PROCESSED: ("Обработано", "#28a745"),
+        SubmissionStatus.FAILED: ("Ошибка", "#dc3545"),
+    }
+    label, color = mapping.get(status, (status, "gray"))
+    return Span(label, style=f"color: {color}; font-weight: bold;")
 
 
 @rt("/courses/{course_id}/labs/modal", methods=["GET"])
@@ -351,11 +363,13 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
                             Ul(
                                 *[
                                     Li(
-                                        f"{s.timestamp.strftime('%Y-%m-%d %H:%M:%S')} - Статус: {s.status}"
+                                        f"{s.timestamp.strftime('%d.%m.%Y %H:%M:%S')} - Статус: ",
+                                        render_status_badge(s.status),
                                     )
                                     for s in lab_subs
                                 ]
                             ),
+
                         ]
                     )
 
