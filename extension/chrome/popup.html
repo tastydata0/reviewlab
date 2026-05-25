@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ReviewLab Extension</title>
+    <style>
+        body { width: 350px; font-family: sans-serif; padding: 15px; background: #f8f9fa; }
+        .hidden { display: none; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #333; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { 
+            width: 100%; padding: 10px; border: none; border-radius: 4px; background: #007bff; color: white; 
+            cursor: pointer; font-size: 14px; font-weight: bold; transition: background 0.2s;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-logout { background: #6c757d; margin-top: 15px; }
+        .btn-logout:hover { background: #5a6268; }
+        #status { margin-top: 15px; padding: 10px; border-radius: 4px; font-size: 13px; text-align: center; }
+        .status-info { background: #e7f3ff; color: #004085; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        .status-success { background: #d4edda; color: #155724; }
+        .header { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        h3 { margin: 0; color: #2c3e50; }
+        .loading-spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin-right: 5px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>ReviewLab Extension</h3>
+        <span id="userName" style="font-size: 12px; color: #6c757d; font-weight: normal;"></span>
+    </div>
+
+    <div id="loginSection" class="hidden">
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="example@email.com">
+        </div>
+        <div class="form-group">
+            <label for="password">Пароль</label>
+            <input type="password" id="password" placeholder="Ваш пароль">
+        </div>
+        <button id="btnLogin">Войти</button>
+    </div>
+
+    <div id="submissionSection" class="hidden">
+        <div id="studentSubmit">
+            <div class="form-group">
+                <label for="courseSelect">Курс</label>
+                <select id="courseSelect">
+                    <option value="">Выберите курс...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="labSelect">Лаба</label>
+                <select id="labSelect" disabled>
+                    <option value="">Выберите лабу...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="taskSelect">Задача</label>
+                <select id="taskSelect" disabled>
+                    <option value="">Выберите задачу...</option>
+                </select>
+            </div>
+            <button id="btnSubmit" disabled>Отправить решение</button>
+        </div>
+        
+        <div id="teacherImport" class="hidden">
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                Вы вошли как преподаватель. Вы можете скопировать условие задачи с текущей страницы в формате Markdown.
+            </p>
+            <button id="btnCopyMarkdown">Скопировать условие (Markdown)</button>
+        </div>
+        
+        <button id="btnLogout" class="btn-logout">Выйти</button>
+    </div>
+
+    <div id="status" class="hidden"></div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

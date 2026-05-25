@@ -1,0 +1,27 @@
+{
+    "manifest_version": 3,
+    "name": "ReviewLab: Browser Extension",
+    "description": "Upload solutions from Codeforces to ReviewLab",
+    "version": "1.0",
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "storage"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "*://codeforces.com/*"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ]
+}
