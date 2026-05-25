@@ -22,6 +22,9 @@ class StaticAnalysisService:
     }
 
     def __init__(self):
+        # Пути к конфигам линтеров (относительно корня проекта)
+        self.config_path = os.path.join(os.getcwd(), "bin", "linters", "configs")
+        
         # Пресеты для линтеров (наборы аргументов CLI)
         self.presets = {
             "python": {
@@ -37,10 +40,10 @@ class StaticAnalysisService:
                 4: ["--enable=warning,style"],
             },
             "java": {
-                1: ["-c", "/google_checks.xml"],
-                2: ["-c", "/sun_checks.xml"],
-                3: ["-c", "/google_checks.xml"],
-                4: ["-c", "/google_checks.xml"],
+                1: ["-c", os.path.join(self.config_path, "reviewlab_checks.xml")],
+                2: ["-c", os.path.join(self.config_path, "sun_checks.xml")],
+                3: ["-c", os.path.join(self.config_path, "google_checks.xml")],
+                4: ["-c", os.path.join(self.config_path, "reviewlab_checks.xml")],
             },
         }
 

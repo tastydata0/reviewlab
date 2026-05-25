@@ -8,5 +8,5 @@ class JavaStaticAnalysisStrategy(BaseStaticAnalysisStrategy):
 
 class CheckstyleAnalysisStrategy(JavaStaticAnalysisStrategy):
     def __init__(self, extra_args: Optional[list[str]] = None):
-        args = extra_args or ["-c", "/google_checks.xml"]
+        args = extra_args or ["-c", "bin/linters/configs/reviewlab_checks.xml"]
         super().__init__("checkstyle", args)

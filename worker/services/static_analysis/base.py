@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from abc import ABC
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,16 @@ class BaseStaticAnalysisStrategy(ABC):
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(), timeout=timeout
             )
-            return (stdout.decode() + "\n" + stderr.decode()).strip()
+            report = (stdout.decode() + "\n" + stderr.decode()).strip()
+
+            # Clean up the output: remove the absolute path to temp_dir
+            # We add a trailing slash to make it look like relative paths
+            abs_path = os.path.abspath(files_dir)
+            if not abs_path.endswith(os.sep):
+                abs_path += os.sep
+
+            report = report.replace(abs_path, "")
+            return report
         except asyncio.TimeoutError:
             if process:
                 process.kill()
