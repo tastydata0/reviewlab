@@ -15,7 +15,7 @@ from app.frontend.shared import render_header
 @rt("/register", methods=["GET"])
 async def get_register(session):
     header = await render_header(session, [("Регистрация", "/register")])
-    
+
     validation_script = """
     function validatePassword() {
         const pwd = document.getElementById('password').value;
@@ -43,39 +43,51 @@ async def get_register(session):
         btn.disabled = !(reqs.len && reqs.low && reqs.up && reqs.spec);
     }
     """
-    
-    return Title("Регистрация"), header, Main(
-        Div(
-            H1("Регистрация"),
-            Form(
-                Input(name="email", placeholder="Email", required=True, type="email"),
-                Input(
-                    type="password", 
-                    name="password", 
-                    id="password",
-                    placeholder="Пароль", 
-                    required=True,
-                    oninput="validatePassword()"
-                ),
-                Div(
-                    Ul(
-                        Li("Минимум 8 символов", id="req-len"),
-                        Li("Хотя бы одна строчная буква (a-z)", id="req-low"),
-                        Li("Хотя бы одна заглавная буква (A-Z)", id="req-up"),
-                        Li("Цифра или спец. символ (@, #, 1...)", id="req-spec"),
-                        style="font-size: 0.8em; color: #dc3545; list-style-type: none; padding-left: 0;"
+
+    return (
+        Title("Регистрация"),
+        header,
+        Main(
+            Div(
+                H1("Регистрация"),
+                Form(
+                    Input(
+                        name="email", placeholder="Email", required=True, type="email"
                     ),
-                    id="password-requirements",
-                    style="display: none; margin-bottom: 15px;"
+                    Input(
+                        type="password",
+                        name="password",
+                        id="password",
+                        placeholder="Пароль",
+                        required=True,
+                        oninput="validatePassword()",
+                    ),
+                    Div(
+                        Ul(
+                            Li("Минимум 8 символов", id="req-len"),
+                            Li("Хотя бы одна строчная буква (a-z)", id="req-low"),
+                            Li("Хотя бы одна заглавная буква (A-Z)", id="req-up"),
+                            Li("Цифра или спец. символ (@, #, 1...)", id="req-spec"),
+                            style="font-size: 0.8em; color: #dc3545; list-style-type: none; padding-left: 0;",
+                        ),
+                        id="password-requirements",
+                        style="display: none; margin-bottom: 15px;",
+                    ),
+                    Input(name="full_name", placeholder="Полное имя", required=True),
+                    Button(
+                        "Зарегистрироваться",
+                        type="submit",
+                        id="reg-btn",
+                        disabled=True,
+                        _class="btn-custom btn-primary",
+                    ),
+                    method="post",
+                    action="/register",
                 ),
-                Input(name="full_name", placeholder="Полное имя", required=True),
-                Button("Зарегистрироваться", type="submit", id="reg-btn", disabled=True, _class="btn-custom btn-primary"),
-                method="post",
-                action="/register",
+                A("Уже есть аккаунт? Войти", href="/login"),
+                Script(NotStr(validation_script)),
+                _class="container",
             ),
-            A("Уже есть аккаунт? Войти", href="/login"),
-            Script(NotStr(validation_script)),
-            _class="container",
         ),
     )
 
@@ -91,31 +103,57 @@ async def post_register(session, email: str, password: str, full_name: str):
             return RedirectResponse("/login", status_code=303)
         except HTTPException as e:
             header = await render_header(session, [("Регистрация", "/register")])
-            return Title("Ошибка регистрации"), header, Main(
-                Div(Div(P(e.detail), A("Назад", href="/register")), _class="container"),
+            return (
+                Title("Ошибка регистрации"),
+                header,
+                Main(
+                    Div(
+                        Div(P(e.detail), A("Назад", href="/register")),
+                        _class="container",
+                    ),
+                ),
             )
         except Exception as e:
             header = await render_header(session, [("Регистрация", "/register")])
-            return Title("Ошибка"), header, Main(
-                Div(Div(P("Произошла непредвиденная ошибка"), A("Назад", href="/register")), _class="container"),
+            return (
+                Title("Ошибка"),
+                header,
+                Main(
+                    Div(
+                        Div(
+                            P("Произошла непредвиденная ошибка"),
+                            A("Назад", href="/register"),
+                        ),
+                        _class="container",
+                    ),
+                ),
             )
 
 
 @rt("/login", methods=["GET"])
 async def get_login(session):
     header = await render_header(session, [("Вход", "/login")])
-    return Title("Вход"), header, Main(
-        Div(
-            H1("Вход"),
-            Form(
-                Input(name="email", placeholder="Email", required=True),
-                Input(type="password", name="password", placeholder="Пароль", required=True),
-                Button("Войти", type="submit"),
-                method="post",
-                action="/login",
+    return (
+        Title("Вход"),
+        header,
+        Main(
+            Div(
+                H1("Вход"),
+                Form(
+                    Input(name="email", placeholder="Email", required=True),
+                    Input(
+                        type="password",
+                        name="password",
+                        placeholder="Пароль",
+                        required=True,
+                    ),
+                    Button("Войти", type="submit"),
+                    method="post",
+                    action="/login",
+                ),
+                A("Нет аккаунта? Зарегистрироваться", href="/register"),
+                _class="container",
             ),
-            A("Нет аккаунта? Зарегистрироваться", href="/register"),
-            _class="container",
         ),
     )
 
@@ -134,8 +172,14 @@ async def post_login(session, email: str, password: str):
             return RedirectResponse("/me", status_code=303)
         except HTTPException as e:
             header = await render_header(session, [("Вход", "/login")])
-            return Title("Ошибка входа"), header, Main(
-                Div(Div(P(e.detail), A("Назад", href="/login")), _class="container"),
+            return (
+                Title("Ошибка входа"),
+                header,
+                Main(
+                    Div(
+                        Div(P(e.detail), A("Назад", href="/login")), _class="container"
+                    ),
+                ),
             )
 
 
@@ -214,9 +258,62 @@ async def get_groups(session):
     async with async_session_maker() as db_session:
         user_service = UserService(db_session)
         groups = await user_service.get_all_study_groups()
+        role = session.get("role")
         header = await render_header(
             session, breadcrumbs=[("Администрирование", "/groups")]
         )
+
+        admin_section = ""
+        if role == UserRole.admin.value:
+            teachers = await user_service.get_users_by_role(UserRole.teacher)
+            teacher_rows = [
+                Tr(
+                    Td(t.full_name),
+                    Td(t.email),
+                    Td(
+                        Button(
+                            "Понизить до студента",
+                            hx_post=f"/users/{t.id}/demote",
+                            hx_target="/groups",
+                            hx_select="main",
+                            hx_swap="outerHTML",
+                            _class="btn-custom btn-danger",
+                        )
+                    ),
+                )
+                for t in teachers
+            ]
+
+            admin_section = Div(
+                H3("Управление правами доступа"),
+                H4("Список преподавателей"),
+                Div(
+                    Table(
+                        Thead(Tr(Th("Имя"), Th("Email"), Th("Действие"))),
+                        Tbody(*teacher_rows),
+                        _class="custom-table",
+                    ),
+                    _class="custom-table-container",
+                    style="margin-bottom: 20px;",
+                ),
+                Hr(),
+                H4("Повысить студента до уровня преподавателя (по email):"),
+                Form(
+                    Input(
+                        name="email",
+                        placeholder="email@university.edu",
+                        required=True,
+                        type="email",
+                    ),
+                    Button(
+                        "Повысить до преподавателя", _class="btn-custom btn-primary"
+                    ),
+                    method="post",
+                    action="/users/promote",
+                ),
+                style="margin-top: 40px; padding: 20px; border: 1px solid #eee; border-radius: 8px; background: #fafafa;",
+            )
+
         return (
             Title("Группы"),
             header,
@@ -243,11 +340,24 @@ async def get_groups(session):
                         method="post",
                         action="/groups",
                     ),
+                    admin_section,
                     Div(id="modal-container"),
                 ),
                 _class="container",
             ),
         )
+
+
+@rt("/users/{user_id}/demote", methods=["POST"])
+async def demote_user(session, user_id: str):
+    require_roles(session, [UserRole.admin.value])
+    async with async_session_maker() as db_session:
+        user_service = UserService(db_session)
+        try:
+            await user_service.demote_to_student(user_id=uuid.UUID(user_id))
+            return RedirectResponse("/groups", status_code=303)
+        except HTTPException as e:
+            return Titled("Ошибка", Div(P(e.detail), A("Назад", href="/groups")))
 
 
 @rt("/groups", methods=["POST"])
@@ -353,6 +463,19 @@ async def post_remove_from_group(session, group_id: str, user_id: str):
         return ""  # HTMX target swap
 
 
+@rt("/users/promote", methods=["POST"])
+async def promote_user_by_email(session, email: str):
+    require_roles(session, [UserRole.admin.value])
+    async with async_session_maker() as db_session:
+        user_service = UserService(db_session)
+        try:
+            user = await user_service.get_user_by_email(email)
+            await user_service.promote_to_teacher(user_id=user.id)
+            return RedirectResponse("/groups", status_code=303)
+        except HTTPException as e:
+            return Titled("Ошибка", Div(P(e.detail), A("Назад", href="/groups")))
+
+
 @rt("/users/{target_user_id}/promote", methods=["POST"])
 async def promote_user(session, target_user_id: str):
     require_roles(session, [UserRole.admin.value])
@@ -360,6 +483,6 @@ async def promote_user(session, target_user_id: str):
         user_service = UserService(db_session)
         try:
             await user_service.promote_to_teacher(user_id=uuid.UUID(target_user_id))
-            return RedirectResponse("/me", status_code=303)
+            return RedirectResponse("/groups", status_code=303)
         except HTTPException as e:
             return Titled("Ошибка", Div(P(e.detail), A("Назад", href="/me")))

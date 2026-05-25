@@ -219,3 +219,22 @@ class UserService:
         await self.session.commit()
         await self.session.refresh(user)
         return user
+
+    async def demote_to_student(self, user_id: uuid.UUID) -> User:
+        user = await self.get_user_by_id(user_id)
+        if user.role == UserRole.admin:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot demote an admin to a student",
+            )
+
+        user.role = UserRole.student
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
+    async def get_users_by_role(self, role: UserRole) -> list[User]:
+        statement = select(User).where(User.role == role)
+        result = await self.session.execute(statement)
+        return result.scalars().all()
