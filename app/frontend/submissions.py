@@ -29,7 +29,9 @@ def render_verdict_badge(verdict: PlagiarismVerdict):
         return Span("⏳ Ожидает вердикта", style="color: gray; font-style: italic;")
 
 
-def render_submission_card(s, is_best=False, is_teacher=False, hide_results=False):
+def render_submission_card(
+    s, is_best=False, is_teacher=False, hide_results=False, view_results_after=None
+):
     score = s.ai_score or 0
     score_percent = min(100, score)
 
@@ -71,6 +73,11 @@ def render_submission_card(s, is_best=False, is_teacher=False, hide_results=Fals
         )
 
     if hide_results:
+        pub_date = (
+            view_results_after.strftime("%d.%m.%Y %H:%M")
+            if view_results_after
+            else "скоро"
+        )
         info_column = [
             best_badge,
             H3("Анализ выполняется..."),
@@ -79,7 +86,7 @@ def render_submission_card(s, is_best=False, is_teacher=False, hide_results=Fals
                 style="color: #666;",
             ),
             P(
-                f"Дата публикации: {s.timestamp.strftime('%d.%m.%Y %H:%M')}",
+                f"Дата публикации: {pub_date}",
                 style="font-size: 0.8em; color: #999;",
             ),
         ]
@@ -205,6 +212,7 @@ async def get_my_submissions_for_task(
                     is_best=True,
                     is_teacher=is_teacher,
                     hide_results=hide_results,
+                    view_results_after=settings.view_results_after,
                 )
             )
             task_submissions = [s for s in task_submissions if s.id != best_sub.id]
@@ -212,7 +220,10 @@ async def get_my_submissions_for_task(
         cards.extend(
             [
                 render_submission_card(
-                    s, is_teacher=is_teacher, hide_results=hide_results
+                    s,
+                    is_teacher=is_teacher,
+                    hide_results=hide_results,
+                    view_results_after=settings.view_results_after,
                 )
                 for s in task_submissions
             ]

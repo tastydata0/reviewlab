@@ -384,6 +384,18 @@ def render_settings_form(
             ),
             explicit.get("view_results_after"),
         ),
+        fld(
+            "forbidden_patterns",
+            "Запрещенные паттерны (регулярные выражения)",
+            Textarea(
+                "\n".join(effective.forbidden_patterns),
+                name="forbidden_patterns",
+                rows="5",
+                style="width: 100%;",
+                placeholder="Например:\neval\\(\nimport os\nos\\.system",
+            ),
+            explicit.get("forbidden_patterns"),
+        ),
         Button(
             "Сохранить изменения",
             _class="btn-custom btn-primary",
@@ -423,6 +435,13 @@ def parse_settings_form(d: dict, is_course: bool) -> dict:
             except ValueError:
                 pass
 
+    forbidden_patterns = None
+    if not is_course and d.get("inherit_forbidden_patterns"):
+        pass
+    else:
+        fp = d.get("forbidden_patterns", "")
+        forbidden_patterns = [p.strip() for p in fp.split("\n") if p.strip()]
+
     res = {
         "plagiarism": {
             "max_z": get_val("plag_max_z", float),
@@ -443,6 +462,7 @@ def parse_settings_form(d: dict, is_course: bool) -> dict:
         },
         "submission_limit": get_val("submission_limit", int),
         "view_results_after": view_results_after,
+        "forbidden_patterns": forbidden_patterns,
     }
 
     def clean_dict(target):

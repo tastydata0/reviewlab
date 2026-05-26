@@ -39,7 +39,7 @@ class PlagiarismService:
         ]
 
         all_subs = [current_sub] + others
-        
+
         lexical_matches = []
         lexical_score = 0.0
         if not settings or settings.use_lexical:
@@ -86,14 +86,18 @@ class PlagiarismService:
         return max(relevant_scores) if relevant_scores else 0.0
 
     def _get_matches_for_id(
-        self, sub_id: str, lex_matches: List, sem_matches: List, min_threshold: float = 0.3
+        self,
+        sub_id: str,
+        lex_matches: List,
+        sem_matches: List,
+        min_threshold: float = 0.3,
     ) -> dict[str, float]:
         res = {}
 
         for m in lex_matches + sem_matches:
             if m.score < min_threshold:
                 continue
-                
+
             # определяем "другой" ID
             other_id = None
             if str(m.source_id) == sub_id:
