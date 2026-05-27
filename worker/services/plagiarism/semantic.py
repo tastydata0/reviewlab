@@ -5,6 +5,7 @@ from ...models.plagiarism import CodeSubmission, PlagiarismMatch
 from ...services.plagiarism.base import BasePlagiarismStrategy
 from ...utils.chunking import CppChunker, JavaChunker, PythonChunker
 from ...utils.embedding.main import embed_1536
+from ...utils.preprocessing import CppPreprocessor, JavaPreprocessor, PythonPreprocessor
 
 
 class SemanticChunkingStrategy(BasePlagiarismStrategy):
@@ -24,10 +25,13 @@ class SemanticChunkingStrategy(BasePlagiarismStrategy):
         self.language = language
         if language == "python":
             self.chunker = PythonChunker()
+            self.preprocessor = PythonPreprocessor()
         elif language == "cpp":
             self.chunker = CppChunker()
+            self.preprocessor = CppPreprocessor()
         elif language == "java":
             self.chunker = JavaChunker()
+            self.preprocessor = JavaPreprocessor()
         else:
             raise ValueError(f"Unsupported language for semantic chunking: {language}")
 
@@ -45,13 +49,13 @@ class SemanticChunkingStrategy(BasePlagiarismStrategy):
         # разбиение на чанки и генерация эмбеддингов
         submission_embeddings = {}
         for sub in submissions:
-            # получаем AST-чанки
-            chunks = self.chunker.chunk_code(sub.code)
+            clean_code = self.preprocessor.preprocess(sub.code)
+            chunks = self.chunker.chunk_code(clean_code)
             print(f"{len(chunks)} chunks")
 
             # если код представляет собой простой скрипт без функций
             if not chunks:
-                chunks = [{"code": sub.code}]
+                chunks = [{"code": clean_code}]
 
             embeddings = []
             for chunk in chunks:

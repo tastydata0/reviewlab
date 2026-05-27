@@ -5,6 +5,7 @@ from copydetect import CopyDetector
 
 from ...models.plagiarism import CodeSubmission, PlagiarismMatch
 from ...services.plagiarism.base import BasePlagiarismStrategy
+from ...utils.preprocessing import CppPreprocessor, JavaPreprocessor, PythonPreprocessor
 
 
 class CopydetectStrategy(BasePlagiarismStrategy):
@@ -18,6 +19,14 @@ class CopydetectStrategy(BasePlagiarismStrategy):
         self.language = language
         self.noise_threshold = noise_threshold
         self.guarantee_threshold = guarantee_threshold
+        if language == "python":
+            self.preprocessor = PythonPreprocessor()
+        elif language == "cpp":
+            self.preprocessor = CppPreprocessor()
+        elif language == "java":
+            self.preprocessor = JavaPreprocessor()
+        else:
+            self.preprocessor = None
 
     async def check(self, submissions: list[CodeSubmission]) -> list[PlagiarismMatch]:
         matches = []
@@ -29,10 +38,14 @@ class CopydetectStrategy(BasePlagiarismStrategy):
 
             # Сохраняем все посылки во временные файлы
             for sub in submissions:
-                # Используем расширение, чтобы copydetect (или force_language) мог правильно отработать
+                code = (
+                    self.preprocessor.preprocess(sub.code)
+                    if self.preprocessor
+                    else sub.code
+                )
                 file_path = temp_path / f"sub_{sub.id}.txt"
                 with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(sub.code)
+                    f.write(code)
 
                 path_to_id[str(file_path.absolute())] = sub.id
 
