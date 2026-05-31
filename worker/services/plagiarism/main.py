@@ -21,6 +21,7 @@ class PlagiarismService:
         other_submissions: List[Submission],
         language: str = "python",
         settings: Optional[PlagiarismSettings] = None,
+        session=None,
     ):
         """
         Сравнивает текущую посылку со списком других посылок.
@@ -31,10 +32,20 @@ class PlagiarismService:
 
         # Конвертируем в формат CodeSubmission
         current_code = self._get_combined_code(current_submission.source_code)
-        current_sub = CodeSubmission(id=str(current_submission.id), code=current_code)
+        current_sub = CodeSubmission(
+            id=str(current_submission.id), 
+            code=current_code,
+            user_id=str(current_submission.user_id),
+            task_id=current_submission.task_id
+        )
 
         others = [
-            CodeSubmission(id=str(s.id), code=self._get_combined_code(s.source_code))
+            CodeSubmission(
+                id=str(s.id), 
+                code=self._get_combined_code(s.source_code),
+                user_id=str(s.user_id),
+                task_id=s.task_id
+            )
             for s in other_submissions
         ]
 
@@ -56,7 +67,7 @@ class PlagiarismService:
         if not settings or settings.use_semantic:
             # Deep
             # используем SemanticChunking как основной "Type-4" детектор
-            semantic_strategy = SemanticChunkingStrategy(language=language)
+            semantic_strategy = SemanticChunkingStrategy(language=language, session=session)
             semantic_matches = await semantic_strategy.check(all_subs)
             print(f"Semantic matches: {semantic_matches}")
             semantic_score = self._get_max_score_for_id(

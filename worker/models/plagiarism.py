@@ -9,6 +9,8 @@ class CodeSubmission(BaseModel):
 
     id: int | str = Field(description="Уникальный идентификатор посылки")
     code: str
+    user_id: str | None = None
+    task_id: str | None = None
 
 
 class PlagiarismMatch(BaseModel):

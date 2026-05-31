@@ -17,6 +17,7 @@ if True:  # чтобы ruff и прочие не убрали
     from app.models.task_group import TaskGroup  # noqa: F401
     from app.models.task import Task  # noqa: F401
     from app.models.task_stats import TaskPlagiarismStats  # noqa: F401
+    from worker.models.embedding import Embedding1536, Embedding768  # noqa: F401
 
 
 dsn = SETTINGS.POSTGRES_DSN.get_secret_value()

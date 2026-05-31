@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     OPENAI_API_BASE_URL: str
 
     RABBITMQ_URL: str
-    REDIS_URL: str
 
     # JWT Settings
     SECRET_KEY: SecretStr = SecretStr("super-secret-key-please-change-in-prod")

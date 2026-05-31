@@ -93,7 +93,8 @@ async def handle_submission(msg: dict):
             current_submission=submission,
             other_submissions=other_submissions,
             language=submission.language,
-            settings=settings.plagiarism
+            settings=settings.plagiarism,
+            session=session
         )
         submission.plagiarism_score = plag_score
         submission.lexical_similarity = lex_sim
