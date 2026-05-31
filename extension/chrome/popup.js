@@ -16,6 +16,8 @@ const UI = {
     teacherImport: document.getElementById('teacherImport'),
     email: document.getElementById('email'),
     password: document.getElementById('password'),
+    expiresIn: document.getElementById('expiresIn'),
+    expiresInCustom: document.getElementById('expiresInCustom'),
     btnLogin: document.getElementById('btnLogin'),
     btnLogout: document.getElementById('btnLogout'),
     btnSubmit: document.getElementById('btnSubmit'),
@@ -152,9 +154,29 @@ UI.taskSelect.addEventListener('change', (e) => {
     UI.btnSubmit.disabled = !state.selectedTask;
 });
 
+UI.expiresIn.addEventListener('change', (e) => {
+    if (e.target.value === 'custom') {
+        UI.expiresInCustom.classList.remove('hidden');
+    } else {
+        UI.expiresInCustom.classList.add('hidden');
+    }
+});
+
 UI.btnLogin.addEventListener('click', async () => {
     const email = UI.email.value;
     const password = UI.password.value;
+    
+    let expiresIn;
+    if (UI.expiresIn.value === 'custom') {
+        expiresIn = parseInt(UI.expiresInCustom.value, 10);
+        if (isNaN(expiresIn) || expiresIn <= 0) {
+            showStatus('Введите корректное количество минут', 'error');
+            return;
+        }
+    } else {
+        expiresIn = parseInt(UI.expiresIn.value, 10) || 120;
+    }
+    
     if (!email || !password) {
         showStatus('Введите email и пароль', 'error');
         return;
@@ -165,7 +187,7 @@ UI.btnLogin.addEventListener('click', async () => {
         const response = await fetch(`${API_BASE}/users/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, expires_in: 120 })
+            body: JSON.stringify({ email, password, expires_in: expiresIn })
         });
 
         if (response.ok) {

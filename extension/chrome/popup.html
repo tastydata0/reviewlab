@@ -42,6 +42,17 @@
             <label for="password">Пароль</label>
             <input type="password" id="password" placeholder="Ваш пароль">
         </div>
+        <div class="form-group">
+            <label for="expiresIn">Срок действия токена</label>
+            <select id="expiresIn">
+                <option value="120">2 часа (на паре)</option>
+                <option value="1440">1 день</option>
+                <option value="10080">7 дней</option>
+                <option value="43200">30 дней (домашний ПК)</option>
+                <option value="custom">Другое (указать вручную)</option>
+            </select>
+            <input type="number" id="expiresInCustom" placeholder="Количество минут" class="hidden" style="margin-top: 10px;" min="1">
+        </div>
         <button id="btnLogin">Войти</button>
     </div>
 
