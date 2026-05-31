@@ -39,10 +39,13 @@ def get_score_style(score: Optional[float]) -> str:
 def login(
     email: str = typer.Option(..., prompt="Email"),
     password: str = typer.Option(..., prompt="Пароль", hide_input=True),
+    token_ttl_minutes: int = typer.Option(
+        120, prompt="Через сколько минут выйти из аккаунта?"
+    ),
 ):
     client = get_client()
     with console.status("[bold green]Авторизация..."):
-        token = client.login(email, password)
+        token = client.login(email, password, token_ttl_minutes)
 
     if token:
         save_token(token)

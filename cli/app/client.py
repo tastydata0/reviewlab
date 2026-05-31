@@ -16,14 +16,14 @@ class Client:
             return {}
         return {"Authorization": f"Bearer {self.token}"}
 
-    def login(self, email: str, password: str) -> Optional[str]:
+    def login(self, email: str, password: str, token_ttl_minutes: int) -> Optional[str]:
         try:
             response = requests.post(
                 f"{BASE_URL}/users/login",
                 json={
                     "email": email,
                     "password": password,
-                    "expires_in": 120,
+                    "expires_in": token_ttl_minutes,
                 },  # 2 hours
             )
             if response.status_code == 200:
