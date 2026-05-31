@@ -5,9 +5,12 @@ from typing import List, Optional
 from rich.console import Console
 from rich.table import Table
 from .client import Client
-from .auth import save_token, delete_token, load_token
+from .config import save_token, delete_token, load_token, save_url, load_url
 
-app = typer.Typer(help="CLI утилита")
+app = typer.Typer(
+    help="ReviewLab CLI — инструмент для автоматизированной проверки кода и взаимодействия с ИИ-ментором.",
+    rich_markup_mode="rich",
+)
 console = Console()
 
 
@@ -37,12 +40,28 @@ def get_score_style(score: Optional[float]) -> str:
 
 @app.command()
 def login(
-    email: str = typer.Option(..., prompt="Email"),
-    password: str = typer.Option(..., prompt="Пароль", hide_input=True),
+    email: str = typer.Option(
+        ..., "--email", "-e", prompt="Email", help="Email вашей учетной записи"
+    ),
+    password: str = typer.Option(
+        ...,
+        "--password",
+        "-p",
+        prompt="Пароль",
+        hide_input=True,
+        help="Пароль от учетной записи",
+    ),
     token_ttl_minutes: int = typer.Option(
-        120, prompt="Через сколько минут выйти из аккаунта?"
+        120,
+        "--ttl",
+        prompt="Срок действия сессии (в минутах)",
+        help="Время жизни токена в минутах до автоматического выхода",
     ),
 ):
+    """
+    [bold green]Авторизация[/bold green] в системе ReviewLab.
+    Получает персональный токен доступа и сохраняет его локально.
+    """
     client = get_client()
     with console.status("[bold green]Авторизация..."):
         token = client.login(email, password, token_ttl_minutes)
@@ -58,18 +77,51 @@ def login(
 
 @app.command()
 def logout():
+    """
+    [bold yellow]Выход[/bold yellow] из системы.
+    Удаляет локально сохраненный токен доступа.
+    """
     delete_token()
     console.print("[bold yellow]Вы успешно вышли.[/bold yellow]")
 
 
 @app.command()
-def submit(
-    task_id: str = typer.Argument(..., help="Код задачи (JOIN_CODE)"),
-    files: List[str] = typer.Argument(..., help="Пути к файлам решения"),
+def config(
+    url: Optional[str] = typer.Option(
+        None,
+        "--url",
+        help="Установить новый URL бэкенда (например, http://localhost:8080/api)",
+    ),
 ):
+    """
+    Просмотр и редактирование [bold cyan]настроек[/bold cyan] подключения.
+    Позволяет изменить адрес сервера, к которому обращается CLI.
+    """
+    if url:
+        save_url(url)
+        console.print(f"[bold green]URL бэкенда успешно изменен на: {url}[/bold green]")
+    else:
+        current_url = load_url()
+        console.print(f"Текущий URL бэкенда: [bold cyan]{current_url}[/bold cyan]")
+        console.print(
+            "Чтобы изменить URL, используйте: [dim]rlcli config --url http://your-api.com/api[/dim]"
+        )
+
+
+@app.command()
+def submit(
+    task_id: str = typer.Argument(
+        ..., help="Короткий код задачи (JOIN_CODE), например 'ABC12'"
+    ),
+    files: List[str] = typer.Argument(..., help="Список путей к файлам вашего решения"),
+):
+    """
+    [bold green]Отправка решения[/bold green] на проверку.
+    Система проверит код линтерами, проанализирует на плагиат и отправит ИИ-ментору.
+    """
     if not load_token():
         console.print(
-            "[bold red]Ошибка: Вы должны войти в систему. Используйте 'cli login'.[/bold red]"
+            "[bold red]Ошибка: Вы должны войти в систему. Используйте 'rlcli login'.[/bold red]"
         )
         raise typer.Exit(1)
 
@@ -94,12 +146,16 @@ def submit(
 @app.command()
 def view(
     task_id: Optional[str] = typer.Option(
-        None, "--task", help="Фильтр по коду задачи (JOIN_CODE)"
+        None, "--task", "-t", help="Фильтр по коду задачи (JOIN_CODE)"
     ),
 ):
+    """
+    Просмотр [bold blue]истории отправок[/bold blue] и результатов проверки.
+    Выводит таблицу с вашими попытками, статусами и оценками.
+    """
     if not load_token():
         console.print(
-            "[bold red]Ошибка: Вы должны войти в систему. Используйте 'cli login'.[/bold red]"
+            "[bold red]Ошибка: Вы должны войти в систему. Используйте 'rlcli login'.[/bold red]"
         )
         raise typer.Exit(1)
 
@@ -169,9 +225,13 @@ def view(
 
 @app.command()
 def tasks():
+    """
+    Получение списка [bold magenta]доступных задач[/bold magenta].
+    Отображает курсы, лабораторные работы и коды для сдачи.
+    """
     if not load_token():
         console.print(
-            "[bold red]Ошибка: Вы должны войти в систему. Используйте 'cli login'.[/bold red]"
+            "[bold red]Ошибка: Вы должны войти в систему. Используйте 'rlcli login'.[/bold red]"
         )
         raise typer.Exit(1)
 

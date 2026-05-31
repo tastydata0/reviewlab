@@ -1,15 +1,12 @@
 import requests
 import os
 from typing import Optional, Dict, List, Any
-from .auth import load_token
-
-# URL of our FastAPI backend
-BASE_URL = "http://localhost:8080/api"
-
+from .config import load_token, load_url
 
 class Client:
     def __init__(self):
         self.token = load_token()
+        self.base_url = load_url()
 
     def _get_headers(self):
         if not self.token:
@@ -19,12 +16,12 @@ class Client:
     def login(self, email: str, password: str, token_ttl_minutes: int) -> Optional[str]:
         try:
             response = requests.post(
-                f"{BASE_URL}/users/login",
+                f"{self.base_url}/users/login",
                 json={
                     "email": email,
                     "password": password,
                     "expires_in": token_ttl_minutes,
-                },  # 2 hours
+                },
             )
             if response.status_code == 200:
                 token = response.json().get("access_token")
@@ -49,7 +46,7 @@ class Client:
                 files_to_send.append(("files", (os.path.basename(path), f)))
 
             response = requests.post(
-                f"{BASE_URL}/submissions/",
+                f"{self.base_url}/submissions/",
                 headers=self._get_headers(),
                 data={"task_id": join_code},
                 files=files_to_send,
@@ -70,7 +67,7 @@ class Client:
             raise Exception("Please login first.")
 
         response = requests.get(
-            f"{BASE_URL}/submissions/my", headers=self._get_headers()
+            f"{self.base_url}/submissions/my", headers=self._get_headers()
         )
         if response.status_code == 200:
             return response.json()
@@ -83,7 +80,7 @@ class Client:
         if not self.token:
             raise Exception("Пожалуйста, сначала авторизуйтесь.")
 
-        response = requests.get(f"{BASE_URL}/tasks/", headers=self._get_headers())
+        response = requests.get(f"{self.base_url}/tasks/", headers=self._get_headers())
         if response.status_code == 200:
             return response.json()
         else:
