@@ -11,7 +11,7 @@ from app.schemas.settings import CascadingSettings
 from app.services.course import CourseService
 from app.services.task import TaskService
 from app.services.settings import get_effective_settings
-from app.frontend.deps.auth import require_roles
+from app.frontend.deps.auth import require_roles, require_course_access
 from app.frontend.shared import render_header
 from app.utils.mentor_presets import MENTOR_PROMPTS
 
@@ -482,6 +482,7 @@ def parse_settings_form(d: dict, is_course: bool) -> dict:
 @rt("/courses/{course_id}/settings", methods=["GET"])
 async def get_course_settings(session, course_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     cid = uuid.UUID(course_id)
     async with async_session_maker() as db_session:
         course = await CourseService(db_session).get_course(cid)
@@ -516,6 +517,7 @@ async def get_course_settings(session, course_id: str):
 @rt("/courses/{course_id}/settings", methods=["POST"])
 async def post_course_settings(session, course_id: str, d: dict):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     cid = uuid.UUID(course_id)
     new_settings_dict = parse_settings_form(d, is_course=True)
 
@@ -530,6 +532,7 @@ async def post_course_settings(session, course_id: str, d: dict):
 @rt("/courses/{course_id}/labs/{lab_id}/settings", methods=["GET"])
 async def get_lab_settings(session, course_id: str, lab_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     lid = uuid.UUID(lab_id)
     cid = uuid.UUID(course_id)
     async with async_session_maker() as db_session:
@@ -574,6 +577,7 @@ async def get_lab_settings(session, course_id: str, lab_id: str):
 @rt("/courses/{course_id}/labs/{lab_id}/settings", methods=["POST"])
 async def post_lab_settings(session, course_id: str, lab_id: str, d: dict):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     lid = uuid.UUID(lab_id)
     new_settings_dict = parse_settings_form(d, is_course=False)
 
@@ -588,6 +592,7 @@ async def post_lab_settings(session, course_id: str, lab_id: str, d: dict):
 @rt("/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/settings", methods=["GET"])
 async def get_task_settings(session, course_id: str, lab_id: str, task_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     tid = uuid.UUID(task_id)
     lid = uuid.UUID(lab_id)
     cid = uuid.UUID(course_id)
@@ -642,6 +647,7 @@ async def post_task_settings(
     session, course_id: str, lab_id: str, task_id: str, d: dict
 ):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     tid = uuid.UUID(task_id)
     new_settings_dict = parse_settings_form(d, is_course=False)
 

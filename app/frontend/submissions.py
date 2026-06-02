@@ -15,7 +15,7 @@ from app.models.task_stats import TaskPlagiarismStats
 from app.services.submission import SubmissionService
 from app.services.task import TaskService
 from app.services.settings import get_effective_settings
-from app.frontend.deps.auth import require_roles
+from app.frontend.deps.auth import require_roles, require_course_access
 from app.frontend.shared import render_header, render_modal
 from worker.utils.normalization.zscore import normalize_zscore_value
 
@@ -178,6 +178,7 @@ async def get_my_submissions_for_task(
     require_roles(
         session, [UserRole.student.value, UserRole.teacher.value, UserRole.admin.value]
     )
+    await require_course_access(session, course_id)
     user_id = uuid.UUID(session["user_id"])
 
     async with async_session_maker() as db_session:

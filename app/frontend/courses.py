@@ -103,6 +103,7 @@ async def get_edit_course_modal(session, course_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     cid = uuid.UUID(course_id)
     async with async_session_maker() as db_session:
+        await CourseService(db_session).check_course_access(cid, uuid.UUID(session["user_id"]), session["role"])
         course = await CourseService(db_session).get_course(cid)
         form_content = Form(
             Label(
@@ -131,6 +132,7 @@ async def post_edit_course(
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     cid = uuid.UUID(course_id)
     async with async_session_maker() as db_session:
+        await CourseService(db_session).check_course_access(cid, uuid.UUID(session["user_id"]), session["role"])
         await CourseService(db_session).update_course(
             cid, name=name, description=description, emoji=emoji
         )
@@ -140,6 +142,8 @@ async def post_edit_course(
 @rt("/courses/{course_id}/add-user/modal", methods=["GET"])
 async def get_add_user_modal(session, course_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    async with async_session_maker() as db_session:
+        await CourseService(db_session).check_course_access(uuid.UUID(course_id), uuid.UUID(session["user_id"]), session["role"])
     form_content = Form(
         Input(name="email", placeholder="Email студента", required=True, type="email"),
         Button("Добавить", _class="btn-custom btn-primary"),
@@ -153,6 +157,7 @@ async def get_add_user_modal(session, course_id: str):
 async def get_add_group_modal(session, course_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     async with async_session_maker() as db_session:
+        await CourseService(db_session).check_course_access(uuid.UUID(course_id), uuid.UUID(session["user_id"]), session["role"])
         groups_result = await db_session.execute(select(StudyGroup))
         groups = groups_result.scalars().all()
         group_options = [Option(g.name, value=str(g.id)) for g in groups]
@@ -170,6 +175,7 @@ async def post_add_user_to_course(session, course_id: str, email: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
     cid = uuid.UUID(course_id)
     async with async_session_maker() as db_session:
+        await CourseService(db_session).check_course_access(cid, uuid.UUID(session["user_id"]), session["role"])
         result = await db_session.execute(select(User).where(User.email == email))
         user = result.scalars().first()
         if not user:
@@ -188,6 +194,7 @@ async def post_add_group_to_course(session, course_id: str, group_id: str):
     cid = uuid.UUID(course_id)
     gid = uuid.UUID(group_id)
     async with async_session_maker() as db_session:
+        await CourseService(db_session).check_course_access(cid, uuid.UUID(session["user_id"]), session["role"])
         await CourseService(db_session).add_group_to_course(cid, gid)
         return RedirectResponse(f"/courses/{cid}", status_code=303)
 
@@ -205,18 +212,11 @@ async def get_course_detail(session, course_id: str):
         course_service = CourseService(db_session)
         task_service = TaskService(db_session)
 
+        await course_service.check_course_access(cid, user_id, role)
+        
         course = await course_service.get_course(cid)
         users = await course_service.get_course_users(cid)
         task_groups = await task_service.get_course_task_groups(cid)
-
-        if role == UserRole.student.value:
-            enrolled = any(u.id == user_id for u in users)
-            if not enrolled:
-                return Titled(
-                    "Доступ запрещен",
-                    P("Вы не записаны на этот курс"),
-                    A("Назад", href="/courses"),
-                )
 
         # Заголовок с кнопкой редактирования курса
         course_title_elements = []

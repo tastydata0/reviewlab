@@ -39,6 +39,32 @@ class CourseService:
             )
         return course
 
+    async def check_course_access(
+        self, course_id: uuid.UUID, user_id: uuid.UUID, role: str
+    ) -> None:
+        if role == "admin":
+            return
+
+        course = await self.get_course(course_id)
+
+        if role == "teacher":
+            if course.teacher_id != user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Доступ к курсу запрещен",
+                )
+            return
+
+        # For students
+        statement = select(CourseUserLink).where(
+            CourseUserLink.course_id == course_id, CourseUserLink.user_id == user_id
+        )
+        result = await self.session.execute(statement)
+        if not result.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Доступ к курсу запрещен"
+            )
+
     async def update_course(
         self,
         course_id: uuid.UUID,
@@ -106,7 +132,4 @@ class CourseService:
         statement = select(User).where(User.id.in_(subquery))
         result = await self.session.execute(statement)
         users = result.scalars().all()
-        print(
-            f"DEBUG: get_course_users returned {len(users)} users. First item type: {type(users[0]) if users else 'N/A'}"
-        )
         return users

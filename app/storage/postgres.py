@@ -24,7 +24,13 @@ dsn = SETTINGS.POSTGRES_DSN.get_secret_value()
 if dsn.startswith("postgresql://"):
     dsn = dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-engine = create_async_engine(dsn, echo=False)
+engine = create_async_engine(
+    dsn,
+    echo=False,
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=60,
+)
 async_session_maker = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )

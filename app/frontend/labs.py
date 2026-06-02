@@ -12,7 +12,7 @@ from app.services.task import TaskService
 from app.services.submission import SubmissionService
 from app.api.deps.mq import get_mq_service
 from app.storage.postgres import async_session_maker
-from app.frontend.deps.auth import require_roles
+from app.frontend.deps.auth import require_roles, require_course_access
 from app.frontend.shared import render_header, render_modal, render_emoji_select
 from app.utils.emojis import get_all_lab_emojis
 from app.utils.language import autodetect_language
@@ -34,6 +34,7 @@ def render_status_badge(status: str):
 @rt("/courses/{course_id}/labs/modal", methods=["GET"])
 async def get_create_lab_modal(session, course_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     form_content = Form(
         Label(
             "Название лабы (например, ЛР №1)",
@@ -55,6 +56,7 @@ async def get_create_lab_modal(session, course_id: str):
 @rt("/courses/{course_id}/labs/{lab_id}/edit/modal", methods=["GET"])
 async def get_edit_lab_modal(session, course_id: str, lab_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     lid = uuid.UUID(lab_id)
     async with async_session_maker() as db_session:
         lab = await TaskService(db_session).get_task_group(lid)
@@ -85,6 +87,7 @@ async def post_edit_lab(
 ):
     emoji = emoji or "🌱"
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     lid = uuid.UUID(lab_id)
     async with async_session_maker() as db_session:
         await TaskService(db_session).update_task_group(
@@ -179,6 +182,7 @@ def render_task_item(
 @rt("/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/edit", methods=["GET"])
 async def get_edit_task(session, course_id: str, lab_id: str, task_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     tid = uuid.UUID(task_id)
     async with async_session_maker() as db_session:
         task = await TaskService(db_session).get_task(tid)
@@ -217,6 +221,7 @@ async def get_edit_task(session, course_id: str, lab_id: str, task_id: str):
 @rt("/courses/{course_id}/labs/{lab_id}/tasks/{task_id}/cancel", methods=["GET"])
 async def get_cancel_edit_task(session, course_id: str, lab_id: str, task_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     tid = uuid.UUID(task_id)
     role = session["role"]
     user_id = uuid.UUID(session["user_id"])
@@ -258,6 +263,7 @@ async def post_edit_task(
     description: str = "",
 ):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     tid = uuid.UUID(task_id)
     role = session["role"]
     user_id = uuid.UUID(session["user_id"])
@@ -294,6 +300,7 @@ async def get_lab_detail(session, course_id: str, lab_id: str):
     require_roles(
         session, [UserRole.student.value, UserRole.teacher.value, UserRole.admin.value]
     )
+    await require_course_access(session, course_id)
     cid = uuid.UUID(course_id)
     lid = uuid.UUID(lab_id)
     user_id = uuid.UUID(session["user_id"])
@@ -457,6 +464,7 @@ async def post_submit_task(
     require_roles(
         session, [UserRole.student.value, UserRole.teacher.value, UserRole.admin.value]
     )
+    await require_course_access(session, course_id)
     user_id = uuid.UUID(session["user_id"])
 
     if files is None:
@@ -522,6 +530,7 @@ async def post_create_lab(
     emoji: Optional[str] = None,
 ):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     cid = uuid.UUID(course_id)
     async with async_session_maker() as db_session:
         await TaskService(db_session).create_task_group(
@@ -535,6 +544,7 @@ async def post_create_task(
     session, course_id: str, lab_id: str, name: str, description: str = ""
 ):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     lid = uuid.UUID(lab_id)
     async with async_session_maker() as db_session:
         await TaskService(db_session).create_task(lid, name, description=description)
@@ -544,6 +554,7 @@ async def post_create_task(
 @rt("/courses/{course_id}/labs/{lab_id}/results", methods=["GET"])
 async def get_lab_results(session, course_id: str, lab_id: str):
     require_roles(session, [UserRole.teacher.value, UserRole.admin.value])
+    await require_course_access(session, course_id)
     cid = uuid.UUID(course_id)
     lid = uuid.UUID(lab_id)
 
