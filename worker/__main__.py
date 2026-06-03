@@ -3,7 +3,7 @@ import logging
 import uuid
 import re
 from faststream import FastStream
-from faststream.rabbit import RabbitBroker
+from faststream.rabbit import Channel, RabbitBroker
 from sqlmodel import select
 import datetime as dt
 
@@ -23,7 +23,7 @@ from worker.utils.normalization.zscore import calculate_stats, normalize_zscore_
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("worker")
 
-broker = RabbitBroker(SETTINGS.RABBITMQ_URL)
+broker = RabbitBroker(SETTINGS.RABBITMQ_URL, default_channel=Channel(prefetch_count=24))
 app = FastStream(broker)
 
 static_analysis_service = StaticAnalysisService()
@@ -51,12 +51,14 @@ async def handle_submission(msg: dict):
         task_res = await session.execute(task_stmt)
         task = task_res.scalars().first()
         task_id_uuid = task.id if task else None
-        
+
         settings = CascadingSettings()
         if task_id_uuid:
             settings = await get_effective_settings(session, task_id_uuid)
 
-        logger.info(f"Running analysis for submission {submission_id} with effective settings...")
+        logger.info(
+            f"Running analysis for submission {submission_id} with effective settings..."
+        )
 
         # Forbidden Patterns Check
         combined_code = "\n\n".join(submission.source_code.values())
@@ -73,9 +75,9 @@ async def handle_submission(msg: dict):
 
         # Static Analysis
         linter_report = await static_analysis_service.analyze(
-            source_code=submission.source_code, 
+            source_code=submission.source_code,
             language=submission.language,
-            settings=settings.linter
+            settings=settings.linter,
         )
         if linter_report:
             submission.linter_report = linter_report
@@ -94,7 +96,7 @@ async def handle_submission(msg: dict):
             other_submissions=other_submissions,
             language=submission.language,
             settings=settings.plagiarism,
-            session=session
+            session=session,
         )
         submission.plagiarism_score = plag_score
         submission.lexical_similarity = lex_sim
@@ -167,7 +169,7 @@ async def handle_submission(msg: dict):
             previous_linter_report=(
                 prev_submission.linter_report if prev_submission else None
             ),
-            settings=settings.llm
+            settings=settings.llm,
         )
 
         if mentor_response:

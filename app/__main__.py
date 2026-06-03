@@ -5,7 +5,7 @@ if 1:
 
 
 def main():
-    uvicorn.run("app.server:app", host="0.0.0.0", port=8080, reload=True, workers=32)
+    uvicorn.run("app.server:app", host="0.0.0.0", port=8080, workers=32)
 
 
 if __name__ == "__main__":

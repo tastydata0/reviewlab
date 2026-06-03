@@ -33,18 +33,18 @@ class PlagiarismService:
         # Конвертируем в формат CodeSubmission
         current_code = self._get_combined_code(current_submission.source_code)
         current_sub = CodeSubmission(
-            id=str(current_submission.id), 
+            id=str(current_submission.id),
             code=current_code,
             user_id=str(current_submission.user_id),
-            task_id=current_submission.task_id
+            task_id=current_submission.task_id,
         )
 
         others = [
             CodeSubmission(
-                id=str(s.id), 
+                id=str(s.id),
                 code=self._get_combined_code(s.source_code),
                 user_id=str(s.user_id),
-                task_id=s.task_id
+                task_id=s.task_id,
             )
             for s in other_submissions
         ]
@@ -57,7 +57,6 @@ class PlagiarismService:
             # Fast
             lexical_strategy = CopydetectStrategy(language=language)
             lexical_matches = await lexical_strategy.check(all_subs)
-            print(f"Lexical matches: {lexical_matches}")
             lexical_score = self._get_max_score_for_id(
                 str(current_submission.id), lexical_matches
             )
@@ -67,9 +66,10 @@ class PlagiarismService:
         if not settings or settings.use_semantic:
             # Deep
             # используем SemanticChunking как основной "Type-4" детектор
-            semantic_strategy = SemanticChunkingStrategy(language=language, session=session)
+            semantic_strategy = SemanticChunkingStrategy(
+                language=language, session=session
+            )
             semantic_matches = await semantic_strategy.check(all_subs)
-            print(f"Semantic matches: {semantic_matches}")
             semantic_score = self._get_max_score_for_id(
                 str(current_submission.id), semantic_matches
             )

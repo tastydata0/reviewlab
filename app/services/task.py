@@ -31,7 +31,6 @@ class TaskService:
         )
         self.session.add(group)
         await self.session.commit()
-        await self.session.refresh(group)
         return group
 
     async def get_course_task_groups(self, course_id: uuid.UUID) -> list[TaskGroup]:
@@ -89,7 +88,6 @@ class TaskService:
         )
         self.session.add(task)
         await self.session.commit()
-        await self.session.refresh(task)
         return task
 
     async def get_task_by_join_code(self, join_code: str) -> Task:

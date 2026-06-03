@@ -10,6 +10,10 @@ from app.models.links import CourseUserLink
 from app.utils.emojis import get_random_course_emoji
 
 
+from cashews import cache
+
+cache.setup("mem://")
+
 class CourseService:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -39,30 +43,27 @@ class CourseService:
             )
         return course
 
+    @cache(ttl="5m", key="check_course_access:{course_id}:{user_id}:{role}")
     async def check_course_access(
         self, course_id: uuid.UUID, user_id: uuid.UUID, role: str
     ) -> None:
         if role == "admin":
             return
 
-        course = await self.get_course(course_id)
-
         if role == "teacher":
-            if course.teacher_id != user_id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Доступ к курсу запрещен",
-                )
-            return
-
-        # For students
-        statement = select(CourseUserLink).where(
-            CourseUserLink.course_id == course_id, CourseUserLink.user_id == user_id
-        )
+            # Проверяем владение курсом одним легким запросом
+            statement = select(Course.id).where(Course.id == course_id, Course.teacher_id == user_id)
+        else:
+            # Проверяем запись на курс одним легким запросом
+            statement = select(CourseUserLink.user_id).where(
+                CourseUserLink.course_id == course_id, CourseUserLink.user_id == user_id
+            )
+        
         result = await self.session.execute(statement)
         if not result.scalars().first():
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Доступ к курсу запрещен"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Доступ к курсу запрещен",
             )
 
     async def update_course(
