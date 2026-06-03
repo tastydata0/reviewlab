@@ -10,6 +10,9 @@ class Settings(BaseSettings):
 
     RABBITMQ_URL: str
 
+    # Rate Limit Settings
+    RATE_LIMIT_RPS: int = 5
+
     # JWT Settings
     SECRET_KEY: SecretStr = SecretStr("super-secret-key-please-change-in-prod")
     ALGORITHM: str = "HS256"
