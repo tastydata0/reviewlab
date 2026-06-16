@@ -1,5 +1,5 @@
 import pytest
-from app.utils.chunking import JavaChunker
+from worker.utils.chunking import JavaChunker
 
 
 @pytest.fixture
@@ -36,3 +36,24 @@ public class Worker {
     assert chunks[1]["name"] == "work"
     assert chunks[1]["type"] == "method"
     assert chunks[1]["code"] == "public void work() {\n        /* qwe\n           test test */\n        System.out.println(\"Working...\");\n    }"
+
+
+def test_java_chunks_classes_and_interfaces():
+    chunker = JavaChunker(mode="class")
+    raw_code = """
+public class MyClass { }
+interface MyInterface { }
+enum MyEnum { A, B }
+"""
+    chunks = chunker.chunk_code(raw_code)
+    
+    assert len(chunks) == 3
+    
+    assert chunks[0]["name"] == "MyClass"
+    assert chunks[0]["type"] == "class"
+    
+    assert chunks[1]["name"] == "MyInterface"
+    assert chunks[1]["type"] == "class"
+    
+    assert chunks[2]["name"] == "MyEnum"
+    assert chunks[2]["type"] == "class"

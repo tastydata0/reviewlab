@@ -1,8 +1,8 @@
 import pytest
 import respx
 from httpx import Response
-from app.utils.embedding import embed_768, embed_1536, EmbeddingStrategy1536
-from app.utils.embedding.huggingface import API_URL
+from worker.utils.embedding import embed_768, embed_1536, EmbeddingStrategy1536
+from worker.utils.embedding.huggingface import API_URL
 from app.settings import SETTINGS
 
 
@@ -31,7 +31,8 @@ async def test_embed_1536_openai():
     test_text = "def hello_world(): print('hi')"
     mock_embedding = [0.1] * 1536
     
-    openai_url = f"{SETTINGS.OPENAI_API_BASE_URL}/v1/embeddings"
+    # OpenAI client appends /embeddings to base_url
+    openai_url = f"{SETTINGS.OPENAI_API_BASE_URL}/embeddings"
     
     # Мокаем ответ OpenAI
     respx.post(openai_url).mock(

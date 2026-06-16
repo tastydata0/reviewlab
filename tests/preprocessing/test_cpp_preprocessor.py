@@ -1,5 +1,5 @@
 import pytest
-from app.utils.preprocessing import CppPreprocessor
+from worker.utils.preprocessing import CppPreprocessor
 
 
 @pytest.fixture

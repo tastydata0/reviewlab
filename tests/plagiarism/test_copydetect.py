@@ -1,7 +1,7 @@
 import pytest
 
-from app.models.plagiarism import CodeSubmission
-from app.services.plagiarism.copydetect_strategy import CopydetectStrategy
+from worker.models.plagiarism import CodeSubmission
+from worker.services.plagiarism.copydetect_strategy import CopydetectStrategy
 
 
 @pytest.fixture

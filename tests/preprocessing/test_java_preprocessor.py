@@ -1,5 +1,5 @@
 import pytest
-from app.utils.preprocessing import JavaPreprocessor
+from worker.utils.preprocessing import JavaPreprocessor
 
 
 @pytest.fixture
